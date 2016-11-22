@@ -42,20 +42,29 @@ public class MinionField extends PotentialField {
     @Override
     public double getValue(int x, int y) {
         
-        
         int colSize = MyStrategy.POTENTIAL_GRID_COL_SIZE;
         double distance = center.getDistanceTo(x, y)*colSize;
-        if (distance < minion.getRadius() - colSize) {
+        
+        
+        if (distance < minion.getRadius() + colSize) {
             return -100.0;
         } else if (distance > maxCastDist + colSize) {
             if (minion.getFaction() == self.getFaction()) {
                 return 0.0;
             } else {
-                if (distance > maxCastDist*5.0 + colSize) {
-                    return 0.0;
+                double value;
+                double selfCastRange = self.getCastRange() + minion.getRadius() + MyStrategy.game.getMagicMissileRadius();
+                if (distance > selfCastRange + colSize) {
+                    value = 0.0;
                 } else {
-                    return 75.0/(distance/maxCastDist);
+                    value = 50.0/(distance/selfCastRange);
                 }
+                
+                if (distance < selfCastRange + colSize && distance > selfCastRange*selfCastRangeMinKoeff - colSize) {
+                    double selfCooldownFactor = selfRemainingTicks < 5 ? (double)(5-selfRemainingTicks) : 0.0;
+                    value += 50.0 * selfCooldownFactor;
+                }
+                return value;
             }
         } else {
             double value;
@@ -72,7 +81,7 @@ public class MinionField extends PotentialField {
                 double distFactor = distance / (maxCastDist + colSize); // 0 мы вплотную 1 мы на макс расстоянии атаки
                 double dangerAngle = angleKoeff * (maxCastSector / 2.0) / distFactor;
 
-                value = (absAngle <= dangerAngle) ? -100.0 : -10.0/(absAngle-dangerAngle);
+                value = (absAngle <= dangerAngle) ? -100.0 : -100.0/(absAngle-dangerAngle);
                 
                 double cooldownFactor = remainingTicks < 20 ? (double)(20-remainingTicks)/20.0 : 1.0;
                 value *= cooldownFactor;
@@ -80,7 +89,7 @@ public class MinionField extends PotentialField {
                 double selfCastRange = self.getCastRange() + minion.getRadius() + MyStrategy.game.getMagicMissileRadius();
                 if (distance < selfCastRange + colSize && distance > selfCastRange*selfCastRangeMinKoeff - colSize) {
                     double selfCooldownFactor = selfRemainingTicks < 5 ? (double)(5-selfRemainingTicks) : 0.0;
-                    value += 75.0 * selfCooldownFactor;
+                    value += 50.0 * selfCooldownFactor;
                 }
             }
             

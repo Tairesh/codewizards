@@ -27,7 +27,7 @@ public class Point {
             return false;
         if (getClass() != obj.getClass())
             return false;
-        AAPFPoint other = (AAPFPoint) obj;
+        Point other = (Point) obj;
         if (x != other.x)
             return false;
         if (y != other.y)

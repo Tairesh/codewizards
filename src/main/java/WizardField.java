@@ -30,7 +30,7 @@ public class WizardField extends PotentialField {
     {
         int colSize = MyStrategy.POTENTIAL_GRID_COL_SIZE;
         double distance = center.getDistanceTo(x, y)*colSize;
-        if (distance < wizard.getRadius() - colSize) {
+        if (distance < wizard.getRadius() + colSize) {
             return -200.0;
         } else if (distance > maxCastDist + colSize) {
             if (wizard.getFaction() == self.getFaction()) {

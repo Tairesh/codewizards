@@ -21,6 +21,8 @@ public final class MyStrategy implements Strategy {
     public static int POTENTIAL_GRID_SIZE;
     public static double[][] potentialGrid;
     private double[][] staticPotentialGrid;
+    private double[][] bonusesPotentialGrid;
+    private double[][] treesPotentialGrid;
     
     private Faction enemyFaction;
     
@@ -183,6 +185,8 @@ public final class MyStrategy implements Strategy {
             POTENTIAL_GRID_SIZE = (int)game.getMapSize()/POTENTIAL_GRID_COL_SIZE;
             potentialGrid = new double[POTENTIAL_GRID_SIZE][POTENTIAL_GRID_SIZE];
             staticPotentialGrid = new double[POTENTIAL_GRID_SIZE][POTENTIAL_GRID_SIZE];
+            bonusesPotentialGrid = new double[POTENTIAL_GRID_SIZE][POTENTIAL_GRID_SIZE];
+            treesPotentialGrid = new double[POTENTIAL_GRID_SIZE][POTENTIAL_GRID_SIZE];
             
             // заполнение статического поля потенциалов
             double value = 10.0;
@@ -192,6 +196,23 @@ public final class MyStrategy implements Strategy {
                     value -= 10.0 / POTENTIAL_GRID_SIZE;
                 }
                 value += 10.0 - (10.0 / POTENTIAL_GRID_SIZE);
+            }
+            
+            int bonus1coords = (int)(game.getMapSize()*0.3/POTENTIAL_GRID_COL_SIZE);
+            int bonus2coords = (int)(game.getMapSize()*0.7/POTENTIAL_GRID_COL_SIZE);
+            
+            for (int x = 0; x < POTENTIAL_GRID_SIZE; x++) {
+                for (int y = 0; y < POTENTIAL_GRID_SIZE; y++) {
+                    bonusesPotentialGrid[x][y] = 0.0;
+                    int distanceToBonus1 = StrictMath.abs(bonus1coords-x) + StrictMath.abs(bonus1coords-y);
+                    int distanceToBonus2 = StrictMath.abs(bonus2coords-x) + StrictMath.abs(bonus2coords-y);
+                    if (distanceToBonus1 < POTENTIAL_GRID_SIZE/2 && distanceToBonus1 != 0) {
+                        bonusesPotentialGrid[x][y] = 1.0*(POTENTIAL_GRID_SIZE/2)/(double)distanceToBonus1;
+                    }
+                    if (distanceToBonus2 < POTENTIAL_GRID_SIZE/2 && distanceToBonus2 != 0) {
+                        bonusesPotentialGrid[x][y] = 1.0*(POTENTIAL_GRID_SIZE/2)/(double)distanceToBonus2;
+                    }
+                }
             }
             
             enemyFaction = self.getFaction() == Faction.ACADEMY ? Faction.RENEGADES : Faction.ACADEMY;
@@ -219,8 +240,28 @@ public final class MyStrategy implements Strategy {
         enemyBuildings = getEnemyBuildings();
         enemyMinions = getEnemyMinions();
         
+        calcTreesPotentials();
         calcPotentials();
         isEnemiesNear = isEnemiesNear();
+    }
+    
+    private void calcTreesPotentials()
+    {
+        if (world.getTickIndex() % 100 == 0) {
+            Tree[] trees = world.getTrees();
+            TreeField[] fields = new TreeField[trees.length];
+            for (int i = 0, l = trees.length; i < l; i++) {
+                fields[i] = new TreeField(trees[i]);
+            }
+            for (int x = 0; x < POTENTIAL_GRID_SIZE; x++) {
+                for (int y = 0; y < POTENTIAL_GRID_SIZE; y++) {
+                    treesPotentialGrid[x][y] = 0.0;
+                    for (TreeField field : fields) {
+                        treesPotentialGrid[x][y] += field.getValue(x, y);
+                    }
+                }
+            }
+        }
     }
     
     private void checkMinionsInAgre()
@@ -248,7 +289,12 @@ public final class MyStrategy implements Strategy {
         Arrays.asList(world.getWizards()).stream().filter((wizard) -> (!wizard.isMe() && wizard.getDistanceTo(self) < self.getVisionRange())).forEachOrdered((wizard) -> {
             fields.add(new WizardField(wizard, self));
         });
-        Arrays.asList(world.getMinions()).stream().filter((minion) -> (minion.getDistanceTo(self) < self.getVisionRange())).forEachOrdered((minion) -> {
+        List<Minion> minions = new ArrayList<>();
+        minions.addAll(enemyMinions);
+        Arrays.asList(world.getMinions()).stream().filter((minion) -> (minion.getFaction() == self.getFaction())).forEachOrdered((minion) -> {
+            minions.add(minion);
+        });        
+        minions.stream().filter((minion) -> (minion.getDistanceTo(self) < self.getVisionRange())).forEachOrdered((minion) -> {
             fields.add(new MinionField(minion, self));
         });
         enemyBuildings.stream().filter((building) -> (building.getDistanceTo(self) < building.getAttackRange())).forEachOrdered((building) -> {
@@ -285,6 +331,8 @@ public final class MyStrategy implements Strategy {
                 }
                 
                 potentialGrid[x][y] += staticPotentialGrid[x][y];
+                potentialGrid[x][y] += bonusesPotentialGrid[x][y];
+                potentialGrid[x][y] += treesPotentialGrid[x][y];
             }            
         }
     }
