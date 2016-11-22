@@ -183,6 +183,8 @@ public final class MyStrategy implements Strategy {
             POTENTIAL_GRID_SIZE = (int)game.getMapSize()/POTENTIAL_GRID_COL_SIZE;
             potentialGrid = new double[POTENTIAL_GRID_SIZE][POTENTIAL_GRID_SIZE];
             staticPotentialGrid = new double[POTENTIAL_GRID_SIZE][POTENTIAL_GRID_SIZE];
+            
+            // заполнение статического поля потенциалов
             double value = 10.0;
             for (int x = 0; x < POTENTIAL_GRID_SIZE; x++) {
                 for (int y = POTENTIAL_GRID_SIZE-1; y >= 0; y--) {
@@ -243,10 +245,10 @@ public final class MyStrategy implements Strategy {
     {
         List<PotentialField> fields = new ArrayList<>(20);
         
-        Arrays.asList(world.getWizards()).stream().filter((wizard) -> (!wizard.isMe() && wizard.getFaction() != self.getFaction() && wizard.getDistanceTo(self) < self.getVisionRange())).forEachOrdered((wizard) -> {
+        Arrays.asList(world.getWizards()).stream().filter((wizard) -> (!wizard.isMe() && wizard.getDistanceTo(self) < self.getVisionRange())).forEachOrdered((wizard) -> {
             fields.add(new WizardField(wizard, self));
         });
-        enemyMinions.stream().filter((minion) -> (minion.getDistanceTo(self) < self.getVisionRange())).forEachOrdered((minion) -> {
+        Arrays.asList(world.getMinions()).stream().filter((minion) -> (minion.getDistanceTo(self) < self.getVisionRange())).forEachOrdered((minion) -> {
             fields.add(new MinionField(minion, self));
         });
         enemyBuildings.stream().filter((building) -> (building.getDistanceTo(self) < building.getAttackRange())).forEachOrdered((building) -> {

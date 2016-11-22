@@ -30,7 +30,7 @@ public class EnemyTowerField extends PotentialField {
         int colSize = MyStrategy.POTENTIAL_GRID_COL_SIZE;
         double distance = center.getDistanceTo(x, y)*colSize;
         
-        if (distance < building.getRadius() + colSize) {
+        if (distance < building.getRadius() - colSize) {
             return -200.0;
         } else if (distance > maxCastDist + colSize) {
             return 0.0;

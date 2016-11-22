@@ -40,9 +40,9 @@ public class BulletField extends PotentialField {
     @Override
     public double getValue(int x, int y) {
         double distance = center.getDistanceTo(x, y)*MyStrategy.POTENTIAL_GRID_COL_SIZE;
-        if (distance > getMaxDistance()+MyStrategy.POTENTIAL_GRID_COL_SIZE) {
+        if (distance > getMaxDistance()-MyStrategy.POTENTIAL_GRID_COL_SIZE) {
             return 0.0;
-        } else if (distance < bullet.getRadius()) {
+        } else if (distance < bullet.getRadius()+MyStrategy.POTENTIAL_GRID_COL_SIZE) {
             return -200.0;
         } else {
             double distToLine = StrictMath.abs(line.getDistanceFrom(x*MyStrategy.POTENTIAL_GRID_COL_SIZE, y*MyStrategy.POTENTIAL_GRID_COL_SIZE));

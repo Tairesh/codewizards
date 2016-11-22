@@ -45,25 +45,43 @@ public class MinionField extends PotentialField {
         
         int colSize = MyStrategy.POTENTIAL_GRID_COL_SIZE;
         double distance = center.getDistanceTo(x, y)*colSize;
-        if (distance < minion.getRadius() + colSize) {
+        if (distance < minion.getRadius() - colSize) {
             return -100.0;
-        } else if (distance > maxCastDist - colSize) {
-            return 0.0;
+        } else if (distance > maxCastDist + colSize) {
+            if (minion.getFaction() == self.getFaction()) {
+                return 0.0;
+            } else {
+                if (distance > maxCastDist*5.0 + colSize) {
+                    return 0.0;
+                } else {
+                    return 75.0/(distance/maxCastDist);
+                }
+            }
         } else {
-            
-            double absAngle = StrictMath.abs(minion.getAngleTo(x*MyStrategy.POTENTIAL_GRID_COL_SIZE, y*MyStrategy.POTENTIAL_GRID_COL_SIZE));
-            double distFactor = distance / (maxCastDist + colSize); // 0 мы вплотную 1 мы на макс расстоянии атаки
-            double dangerAngle = angleKoeff * (MyStrategy.game.getStaffSector() / 2.0) / distFactor;
-            
-            double value = (absAngle <= dangerAngle) ? -100.0 : -10.0/(absAngle-dangerAngle);
-            
-            double cooldownFactor = remainingTicks < 20 ? (double)(20-remainingTicks)/20.0 : 1.0;
-            value *= cooldownFactor;
-            
-            double selfCastRange = self.getCastRange() + minion.getRadius() + MyStrategy.game.getMagicMissileRadius();
-            if (distance < selfCastRange + colSize && distance > selfCastRange*selfCastRangeMinKoeff - colSize) {
-                double selfCooldownFactor = selfRemainingTicks < 5 ? (double)(5-selfRemainingTicks) : 0.0;
-                value += 50.0 * selfCooldownFactor;
+            double value;
+            if (minion.getFaction() == self.getFaction()) {
+                
+                double absAngle = StrictMath.abs(minion.getAngleTo(x*MyStrategy.POTENTIAL_GRID_COL_SIZE, y*MyStrategy.POTENTIAL_GRID_COL_SIZE));
+                double distFactor = distance / (maxCastDist + colSize); // 0 мы вплотную 1 мы на макс расстоянии атаки
+                double dangerAngle = angleKoeff * (maxCastSector / 2.0) / distFactor;
+
+                value = (absAngle <= dangerAngle) ? -10.0 : (absAngle-dangerAngle)*10.0;
+            } else {
+                
+                double absAngle = StrictMath.abs(minion.getAngleTo(x*MyStrategy.POTENTIAL_GRID_COL_SIZE, y*MyStrategy.POTENTIAL_GRID_COL_SIZE));
+                double distFactor = distance / (maxCastDist + colSize); // 0 мы вплотную 1 мы на макс расстоянии атаки
+                double dangerAngle = angleKoeff * (maxCastSector / 2.0) / distFactor;
+
+                value = (absAngle <= dangerAngle) ? -100.0 : -10.0/(absAngle-dangerAngle);
+                
+                double cooldownFactor = remainingTicks < 20 ? (double)(20-remainingTicks)/20.0 : 1.0;
+                value *= cooldownFactor;
+                
+                double selfCastRange = self.getCastRange() + minion.getRadius() + MyStrategy.game.getMagicMissileRadius();
+                if (distance < selfCastRange + colSize && distance > selfCastRange*selfCastRangeMinKoeff - colSize) {
+                    double selfCooldownFactor = selfRemainingTicks < 5 ? (double)(5-selfRemainingTicks) : 0.0;
+                    value += 75.0 * selfCooldownFactor;
+                }
             }
             
             return value;

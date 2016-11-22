@@ -30,24 +30,42 @@ public class WizardField extends PotentialField {
     {
         int colSize = MyStrategy.POTENTIAL_GRID_COL_SIZE;
         double distance = center.getDistanceTo(x, y)*colSize;
-        if (distance < wizard.getRadius() + colSize) {
+        if (distance < wizard.getRadius() - colSize) {
             return -200.0;
-        } else if (distance > maxCastDist - colSize) {
-            return 0.0;
+        } else if (distance > maxCastDist + colSize) {
+            if (wizard.getFaction() == self.getFaction()) {
+                return 0.0;
+            } else {
+                if (distance > maxCastDist*5 + colSize) {
+                    return 0.0;
+                } else {
+                    return 100.0/(distance/maxCastDist);
+                }
+            }
         } else {
-            double absAngle = StrictMath.abs(wizard.getAngleTo(x*MyStrategy.POTENTIAL_GRID_COL_SIZE, y*MyStrategy.POTENTIAL_GRID_COL_SIZE));
-            double distFactor = distance / (maxCastDist + colSize); // 0 мы вплотную 1 мы на макс расстоянии атаки
-            double dangerAngle = angleKoeff * (MyStrategy.game.getStaffSector() / 2.0) / distFactor;
+            double value;
             
-            double value = (absAngle <= dangerAngle) ? -200.0 : -10.0/(absAngle-dangerAngle);
-            
-            double cooldownFactor = wizardRemainingTicks < 20 ? (double)(20-wizardRemainingTicks)/20.0 : 1.0;
-            value *= cooldownFactor;
-            
-            double selfCastRange = self.getCastRange() + wizard.getRadius() + MyStrategy.game.getMagicMissileRadius();
-            if (distance < selfCastRange + colSize && distance > selfCastRange*selfCastRangeMinKoeff - colSize) {
-                double selfCooldownFactor = selfRemainingTicks < 5 ? (double)(5-selfRemainingTicks) : 0.0;
-                value += 50.0 * selfCooldownFactor;
+            if (wizard.getFaction() == self.getFaction()) {
+                double absAngle = StrictMath.abs(wizard.getAngleTo(x*MyStrategy.POTENTIAL_GRID_COL_SIZE, y*MyStrategy.POTENTIAL_GRID_COL_SIZE));
+                double distFactor = distance / (maxCastDist + colSize); // 0 мы вплотную 1 мы на макс расстоянии атаки
+                double dangerAngle = angleKoeff * (MyStrategy.game.getStaffSector() / 2.0) / distFactor;
+
+                value = (absAngle <= dangerAngle) ? -10.0 : (absAngle-dangerAngle)*10.0;
+            } else {
+                double absAngle = StrictMath.abs(wizard.getAngleTo(x*MyStrategy.POTENTIAL_GRID_COL_SIZE, y*MyStrategy.POTENTIAL_GRID_COL_SIZE));
+                double distFactor = distance / (maxCastDist + colSize); // 0 мы вплотную 1 мы на макс расстоянии атаки
+                double dangerAngle = angleKoeff * (MyStrategy.game.getStaffSector() / 2.0) / distFactor;
+
+                value = (absAngle <= dangerAngle) ? -200.0 : -10.0/(absAngle-dangerAngle);
+
+                double cooldownFactor = wizardRemainingTicks < 20 ? (double)(20-wizardRemainingTicks)/20.0 : 1.0;
+                value *= cooldownFactor;
+
+                double selfCastRange = self.getCastRange() + wizard.getRadius() + MyStrategy.game.getMagicMissileRadius();
+                if (distance < selfCastRange + colSize && distance > selfCastRange*selfCastRangeMinKoeff - colSize) {
+                    double selfCooldownFactor = selfRemainingTicks < 5 ? (double)(5-selfRemainingTicks) : 0.0;
+                    value += 100.0 * selfCooldownFactor;
+                }
             }
             
             return value;
