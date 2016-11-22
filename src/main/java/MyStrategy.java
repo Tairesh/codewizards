@@ -21,7 +21,6 @@ public final class MyStrategy implements Strategy {
     public static int POTENTIAL_GRID_SIZE;
     public static double[][] potentialGrid;
     private double[][] staticPotentialGrid;
-    private double[][] bonusesPotentialGrid;
     private double[][] treesPotentialGrid;
     
     private Faction enemyFaction;
@@ -35,6 +34,8 @@ public final class MyStrategy implements Strategy {
     private List<Building> enemyBuildings; // вместе с фейковыми
     private List<Minion> enemyMinions; // вместе с нейтралами в агре
     
+    private List<LivingUnit> allUnits;
+    
     private boolean isEnemiesNear;
     
     @Override
@@ -42,30 +43,43 @@ public final class MyStrategy implements Strategy {
     {
         initStrategy(self, world, game, move);
         initTick(self, world, game, move);
-        
+        debug.beginPost();
         if (isEnemiesNear) {
-            Point maxPotentialPoint = getMaximumPotentialPoint();
+            Point maxPotentialPoint = getBestExtremumPoint();
+            Color color = Color.YELLOW;
+            if (null == maxPotentialPoint) {
+                maxPotentialPoint = getMaxPotentialPoint();
+                color = Color.ORANGE;
+            }
             double x = maxPotentialPoint.x * POTENTIAL_GRID_COL_SIZE;
             double y = maxPotentialPoint.y * POTENTIAL_GRID_COL_SIZE;
+            debug.line(self.getX(), self.getY(), x, y, color);
+            debug.fillCircle(x, y, POTENTIAL_GRID_COL_SIZE/2, Color.YELLOW);
             Vector2D vector = new Vector2D(4.0, self.getAngleTo(x, y));
             move.setSpeed(vector.getX());
             move.setStrafeSpeed(vector.getY());
             
-            LivingUnit nearestEnemy = getNearestEnemy();
-            double angle = self.getAngleTo(nearestEnemy);
-            double distance = self.getDistanceTo(nearestEnemy);
+            LivingUnit bestTarget = getBestTarget();
+            if (null == bestTarget) {
+                bestTarget = getNearestEnemy();
+            }
+            if (null == bestTarget) {
+                bestTarget = fakeBuildings[6];
+            }
+            double angle = self.getAngleTo(bestTarget);
+            double distance = self.getDistanceTo(bestTarget);
             move.setTurn(angle);
-            if (distance <= self.getCastRange()+nearestEnemy.getRadius()+game.getMagicMissileRadius()
+            if (distance <= self.getCastRange()+bestTarget.getRadius()+game.getMagicMissileRadius()
                 && StrictMath.abs(angle) < game.getStaffSector() / 2.0) {
                 move.setAction(ActionType.MAGIC_MISSILE);
                 move.setCastAngle(angle);
-                move.setMinCastDistance(distance-nearestEnemy.getRadius()-game.getMagicMissileRadius());
+                move.setMinCastDistance(distance-bestTarget.getRadius()-game.getMagicMissileRadius());
             }
         } else {
-            move.setTurn(self.getAngleTo(self.getY() < 500 ? 3700 : 300, 300));
+            move.setTurn(self.getAngleTo((self.getY()<500)?3700:300, 300));
             move.setSpeed(4.0);
         }
-
+        debug.endPost();
         debug.beginPre();
         int startX = (int)(self.getX()-self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
         int startY = (int)(self.getY()-self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
@@ -119,20 +133,143 @@ public final class MyStrategy implements Strategy {
                 nearestUnit = unit;
             }
         }
-        
+            
         return nearestUnit;
     }
     
-    private Point getMaximumPotentialPoint()
+    private LivingUnit getBestTarget()
+    {
+        int maxScore = -1;
+        LivingUnit bestTarget = null;
+        
+        List<LivingUnit> enemies = new ArrayList<>();
+        Arrays.asList(world.getWizards()).stream().filter((wizard) -> (wizard.getFaction() == enemyFaction)).forEachOrdered((wizard) -> {
+            enemies.add(wizard);
+        });
+        enemies.addAll(enemyMinions);
+        enemies.addAll(enemyBuildings);
+        
+        for (LivingUnit unit : enemies) {
+            if (self.getDistanceTo(unit) > self.getVisionRange()) {
+                continue;
+            }
+            int score = 0;
+            
+            if (unit.getLife() < game.getMagicMissileDirectDamage()) {
+                score += 10;
+            } else if (unit.getLife() < game.getMagicMissileDirectDamage()*2.0) {
+                score += 5;
+            } else if (unit.getLife() < unit.getMaxLife()*0.55) {
+                score += 1;
+            }
+            
+            if (unit.getClass() == Wizard.class) {
+                score *= 100;
+            } else if (unit.getClass() == Building.class) {
+                score *= 10;
+            }
+            
+            if (score > maxScore) {
+                maxScore = score;
+                bestTarget = unit;
+            }
+        }
+        
+        return bestTarget;
+    }
+    
+    private boolean isExtremum(int x, int y)
+    {
+        double value = potentialGrid[x][y];
+        
+        if (x > 0) {
+            if (potentialGrid[x-1][y] > value) {
+                return false;
+            }
+        }
+        if (y > 0) {
+            if (potentialGrid[x][y-1] > value) {
+                return false;
+            }
+        }
+        if (x < POTENTIAL_GRID_SIZE-1) {
+            if (potentialGrid[x+1][y] > value) {
+                return false;
+            }
+        }
+        if (y < POTENTIAL_GRID_SIZE-1) {
+            if (potentialGrid[x][y+1] > value) {
+                return false;
+            }
+        }
+        return true;
+    }
+    
+    private List<Point> getExtremumPoints()
+    {
+        List<Point> points = new ArrayList<>();
+        int startX = (int)(self.getX()-self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
+        int startY = (int)(self.getY()-self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
+        int endX = (int)(self.getX()+self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
+        int endY = (int)(self.getY()+self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
+        startX = (startX < 0) ? 0 : startX;
+        startY = (startY < 0) ? 0 : startY;
+        endX = (endX >= POTENTIAL_GRID_SIZE) ? POTENTIAL_GRID_SIZE-1 : endX;
+        endY = (endY >= POTENTIAL_GRID_SIZE) ? POTENTIAL_GRID_SIZE-1 : endY;
+        for (int x = startX; x <= endX; x++) {
+            for (int y = startY; y <= endY; y++) {
+                if (isExtremum(x,y)) {
+                    points.add(new Point(x,y));
+                }
+            }
+        }
+        return points;
+    }
+    
+    private Point getBestExtremumPoint()
+    {
+        List<Point> extremums = getExtremumPoints();
+        if (extremums.isEmpty()) {
+            return null;
+        }
+        List<Point> bestPoints = new ArrayList<>();
+        for (Point point : extremums) {
+            LineSegment2D segment = new LineSegment2D(self.getX(), self.getY(), point.x*POTENTIAL_GRID_COL_SIZE, point.y*POTENTIAL_GRID_COL_SIZE);
+            
+            Vector2D vector = new Vector2D(self.getRadius()+1.0, MyMath.normalizeAngle(self.getAngle()-StrictMath.PI/2.0));
+            LineSegment2D segmentLeft = segment.copy().add(vector);
+            vector.rotate(StrictMath.PI);
+            LineSegment2D segmentRight = segment.copy().add(vector);
+            
+            boolean isCrossing = false;
+            for (LivingUnit unit : allUnits) {
+                if (segmentLeft.isCrossingCircle(unit) || segmentRight.isCrossingCircle(unit) || segment.isCrossingCircle(unit)) {
+                    isCrossing = true;
+                    break;
+                }
+            }
+            if (!isCrossing) {
+                bestPoints.add(point);
+            }
+        }
+        int selfX = (int)self.getX()/POTENTIAL_GRID_COL_SIZE;
+        int selfY = (int)self.getY()/POTENTIAL_GRID_COL_SIZE;
+        bestPoints.sort((Point point1, Point point2) -> {
+            return (StrictMath.abs(point1.x-selfX) + StrictMath.abs(point1.y-selfY) < StrictMath.abs(point2.x-selfX) + StrictMath.abs(point2.y-selfY)) ? 1 : -1;
+        });
+        return bestPoints.size() > 0 ? bestPoints.get(0) : null;
+    }
+    
+    private Point getMaxPotentialPoint()
     {
         double max = -Double.MAX_VALUE;
         int maxX = 0;
         int maxY = 0;
         
-        int startX = (int)(self.getX()-self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
-        int startY = (int)(self.getY()-self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
-        int endX = (int)(self.getX()+self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
-        int endY = (int)(self.getY()+self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
+        int startX = (int)(self.getX()-self.getVisionRange()/3.0)/POTENTIAL_GRID_COL_SIZE;
+        int startY = (int)(self.getY()-self.getVisionRange()/3.0)/POTENTIAL_GRID_COL_SIZE;
+        int endX = (int)(self.getX()+self.getVisionRange()/3.0)/POTENTIAL_GRID_COL_SIZE;
+        int endY = (int)(self.getY()+self.getVisionRange()/3.0)/POTENTIAL_GRID_COL_SIZE;
         startX = (startX < 0) ? 0 : startX;
         startY = (startY < 0) ? 0 : startY;
         endX = (endX >= POTENTIAL_GRID_SIZE) ? POTENTIAL_GRID_SIZE-1 : endX;
@@ -185,36 +322,25 @@ public final class MyStrategy implements Strategy {
             POTENTIAL_GRID_SIZE = (int)game.getMapSize()/POTENTIAL_GRID_COL_SIZE;
             potentialGrid = new double[POTENTIAL_GRID_SIZE][POTENTIAL_GRID_SIZE];
             staticPotentialGrid = new double[POTENTIAL_GRID_SIZE][POTENTIAL_GRID_SIZE];
-            bonusesPotentialGrid = new double[POTENTIAL_GRID_SIZE][POTENTIAL_GRID_SIZE];
             treesPotentialGrid = new double[POTENTIAL_GRID_SIZE][POTENTIAL_GRID_SIZE];
             
             // заполнение статического поля потенциалов
-            double value = 10.0;
+            double value = -10.0;
             for (int x = 0; x < POTENTIAL_GRID_SIZE; x++) {
-                for (int y = POTENTIAL_GRID_SIZE-1; y >= 0; y--) {
-                    staticPotentialGrid[x][y] = value;
-                    value -= 10.0 / POTENTIAL_GRID_SIZE;
+                for (int y = POTENTIAL_GRID_SIZE-1; y >= 0; y--) {                    
+                    if (x == 0 || y == 0 || x == POTENTIAL_GRID_SIZE-1 || y == POTENTIAL_GRID_SIZE-1) {
+                        staticPotentialGrid[x][y] = -500.0;
+                    } else {
+                        staticPotentialGrid[x][y] = value;
+                    }
+                    value += 10.0 / POTENTIAL_GRID_SIZE;
                 }
-                value += 10.0 - (10.0 / POTENTIAL_GRID_SIZE);
+                value -= 10.0 - (10.0 / POTENTIAL_GRID_SIZE);
             }
             
-            int bonus1coords = (int)(game.getMapSize()*0.3/POTENTIAL_GRID_COL_SIZE);
-            int bonus2coords = (int)(game.getMapSize()*0.7/POTENTIAL_GRID_COL_SIZE);
-            
-            for (int x = 0; x < POTENTIAL_GRID_SIZE; x++) {
-                for (int y = 0; y < POTENTIAL_GRID_SIZE; y++) {
-                    bonusesPotentialGrid[x][y] = 0.0;
-                    int distanceToBonus1 = StrictMath.abs(bonus1coords-x) + StrictMath.abs(bonus1coords-y);
-                    int distanceToBonus2 = StrictMath.abs(bonus2coords-x) + StrictMath.abs(bonus2coords-y);
-                    if (distanceToBonus1 < POTENTIAL_GRID_SIZE/2 && distanceToBonus1 != 0) {
-                        bonusesPotentialGrid[x][y] = 1.0*(POTENTIAL_GRID_SIZE/2)/(double)distanceToBonus1;
-                    }
-                    if (distanceToBonus2 < POTENTIAL_GRID_SIZE/2 && distanceToBonus2 != 0) {
-                        bonusesPotentialGrid[x][y] = 1.0*(POTENTIAL_GRID_SIZE/2)/(double)distanceToBonus2;
-                    }
-                }
-            }
-            
+//            int bonus1coords = (int)(game.getMapSize()*0.3/POTENTIAL_GRID_COL_SIZE);
+//            int bonus2coords = (int)(game.getMapSize()*0.7/POTENTIAL_GRID_COL_SIZE);
+                        
             enemyFaction = self.getFaction() == Faction.ACADEMY ? Faction.RENEGADES : Faction.ACADEMY;
             fakeBuildings = new Building[]{
                 new Building(124214, 2070.7106781186544, 1600.0, 0, 0, 0, enemyFaction,game.getGuardianTowerRadius(),(int)StrictMath.round(game.getGuardianTowerLife()),(int)StrictMath.round(game.getGuardianTowerLife()), self.getStatuses(),BuildingType.GUARDIAN_TOWER,game.getGuardianTowerVisionRange(),game.getGuardianTowerAttackRange(),game.getGuardianTowerDamage(),0,0),
@@ -243,6 +369,13 @@ public final class MyStrategy implements Strategy {
         calcTreesPotentials();
         calcPotentials();
         isEnemiesNear = isEnemiesNear();
+        
+        allUnits = new ArrayList<>();
+        allUnits.addAll(Arrays.asList(world.getBuildings()));
+        allUnits.addAll(Arrays.asList(world.getMinions()));
+        allUnits.addAll(Arrays.asList(world.getWizards()));
+        allUnits.addAll(Arrays.asList(world.getTrees()));
+        allUnits.remove(self);
     }
     
     private void calcTreesPotentials()
@@ -277,30 +410,34 @@ public final class MyStrategy implements Strategy {
                 aliveIds.add(minion.getId());
             }
         }
+        Set<Long> diedIds = new HashSet<>(10);        
         neutralMinionsInAgre.stream().filter((id) -> (!aliveIds.contains(id))).forEachOrdered((id) -> {
-            neutralMinionsInAgre.remove(id);
+            diedIds.add(id);
         });
+        neutralMinionsInAgre.removeAll(diedIds);
     }
     
     private void calcPotentials()
     {
         List<PotentialField> fields = new ArrayList<>(20);
         
-        Arrays.asList(world.getWizards()).stream().filter((wizard) -> (!wizard.isMe() && wizard.getDistanceTo(self) < self.getVisionRange())).forEachOrdered((wizard) -> {
+        Arrays.asList(world.getWizards()).stream().filter((wizard) -> (!wizard.isMe() && self.getDistanceTo(wizard) < self.getVisionRange()*2.0)).forEachOrdered((wizard) -> {
             fields.add(new WizardField(wizard, self));
         });
         List<Minion> minions = new ArrayList<>();
-        minions.addAll(enemyMinions);
-        Arrays.asList(world.getMinions()).stream().filter((minion) -> (minion.getFaction() == self.getFaction())).forEachOrdered((minion) -> {
+        enemyMinions.stream().filter((minion) -> (self.getDistanceTo(minion) < self.getVisionRange()*2.0)).forEach((minion) -> {
+            minions.add(minion);
+        });
+        Arrays.asList(world.getMinions()).stream().filter((minion) -> (minion.getFaction() == self.getFaction() && self.getDistanceTo(minion) < self.getVisionRange()*2.0)).forEachOrdered((minion) -> {
             minions.add(minion);
         });        
         minions.stream().filter((minion) -> (minion.getDistanceTo(self) < self.getVisionRange())).forEachOrdered((minion) -> {
             fields.add(new MinionField(minion, self));
         });
-        enemyBuildings.stream().filter((building) -> (building.getDistanceTo(self) < building.getAttackRange())).forEachOrdered((building) -> {
+        enemyBuildings.stream().filter((building) -> (building.getDistanceTo(self) < building.getAttackRange()*2.0)).forEachOrdered((building) -> {
             fields.add(new EnemyTowerField(building, self));
         });
-        Arrays.asList(world.getProjectiles()).stream().filter((bullet) -> (bullet.getFaction() != self.getFaction())).forEachOrdered((bullet) -> {
+        Arrays.asList(world.getProjectiles()).stream().filter((bullet) -> (bullet.getFaction() != self.getFaction() && self.getDistanceTo(bullet) < self.getVisionRange()*2.0)).forEachOrdered((bullet) -> {
             fields.add(new BulletField(bullet, self));
         });
         
@@ -331,7 +468,6 @@ public final class MyStrategy implements Strategy {
                 }
                 
                 potentialGrid[x][y] += staticPotentialGrid[x][y];
-                potentialGrid[x][y] += bonusesPotentialGrid[x][y];
                 potentialGrid[x][y] += treesPotentialGrid[x][y];
             }            
         }
