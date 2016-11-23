@@ -10,6 +10,7 @@ import model.*;
 public final class MyStrategy implements Strategy {
     
     private final IVisualClient debug = new VisualClient();
+    private final PathFinder pathFinder = PathFinder.getInstance();
     private Random random;
     
     private Wizard self;
@@ -44,11 +45,20 @@ public final class MyStrategy implements Strategy {
         initStrategy(self, world, game, move);
         initTick(self, world, game, move);
         debug.beginPost();
+        Point selfPoint = new Point((int) self.getX()/POTENTIAL_GRID_COL_SIZE, (int) self.getY()/POTENTIAL_GRID_COL_SIZE);
+                
         if (isEnemiesNear) {
             Point maxPotentialPoint = getBestExtremumPoint();
             Color color = Color.YELLOW;
             if (null == maxPotentialPoint) {
                 maxPotentialPoint = getMaxPotentialPoint();
+                List<Point> path = pathFinder.getPath(selfPoint, maxPotentialPoint);
+                if (path != null && path.size() > 0) {
+                    path.forEach((point) -> {
+                        debug.fillRect(point.x*POTENTIAL_GRID_COL_SIZE, point.y*POTENTIAL_GRID_COL_SIZE, (point.x+1)*POTENTIAL_GRID_COL_SIZE, (point.y+1)*POTENTIAL_GRID_COL_SIZE, Color.CYAN);
+                    });
+                    maxPotentialPoint = path.get(0);
+                }
                 color = Color.ORANGE;
             }
             double x = maxPotentialPoint.x * POTENTIAL_GRID_COL_SIZE;
@@ -120,7 +130,7 @@ public final class MyStrategy implements Strategy {
         LivingUnit nearestUnit = null;
         
         List<LivingUnit> enemies = new ArrayList<>();
-        Arrays.asList(world.getWizards()).stream().filter((wizard) -> (wizard.getFaction() == enemyFaction)).forEachOrdered((wizard) -> {
+        Arrays.asList(world.getWizards()).stream().filter((wizard) -> (wizard.getFaction() == enemyFaction)).forEach((wizard) -> {
             enemies.add(wizard);
         });
         enemies.addAll(enemyMinions);
@@ -143,7 +153,7 @@ public final class MyStrategy implements Strategy {
         LivingUnit bestTarget = null;
         
         List<LivingUnit> enemies = new ArrayList<>();
-        Arrays.asList(world.getWizards()).stream().filter((wizard) -> (wizard.getFaction() == enemyFaction)).forEachOrdered((wizard) -> {
+        Arrays.asList(world.getWizards()).stream().filter((wizard) -> (wizard.getFaction() == enemyFaction)).forEach((wizard) -> {
             enemies.add(wizard);
         });
         enemies.addAll(enemyMinions);
@@ -155,18 +165,18 @@ public final class MyStrategy implements Strategy {
             }
             int score = 0;
             
-            if (unit.getLife() < game.getMagicMissileDirectDamage()) {
+            if (unit.getLife() <= game.getMagicMissileDirectDamage()) {
                 score += 10;
-            } else if (unit.getLife() < game.getMagicMissileDirectDamage()*2.0) {
+            } else if (unit.getLife() <= game.getMagicMissileDirectDamage()*2.0) {
                 score += 5;
             } else if (unit.getLife() < unit.getMaxLife()*0.55) {
                 score += 1;
             }
             
             if (unit.getClass() == Wizard.class) {
-                score *= 100;
+                score += 100;
             } else if (unit.getClass() == Building.class) {
-                score *= 10;
+                score += 10;
             }
             
             if (score > maxScore) {
@@ -241,10 +251,15 @@ public final class MyStrategy implements Strategy {
             vector.rotate(StrictMath.PI);
             LineSegment2D segmentRight = segment.copy().add(vector);
             
+            debug.line(segmentLeft.getX1(), segmentLeft.getY1(), segmentLeft.getX2(), segmentLeft.getY2(), Color.YELLOW);
+            debug.line(segment.getX1(), segment.getY1(), segment.getX2(), segment.getY2(), Color.YELLOW);
+            debug.line(segmentRight.getX1(), segmentRight.getY1(), segmentRight.getX2(), segmentRight.getY2(), Color.YELLOW);
+            
             boolean isCrossing = false;
             for (LivingUnit unit : allUnits) {
                 if (segmentLeft.isCrossingCircle(unit) || segmentRight.isCrossingCircle(unit) || segment.isCrossingCircle(unit)) {
                     isCrossing = true;
+                    debug.fillCircle(unit.getX(), unit.getY(), unit.getRadius(), Color.ORANGE);
                     break;
                 }
             }
@@ -373,9 +388,10 @@ public final class MyStrategy implements Strategy {
         allUnits = new ArrayList<>();
         allUnits.addAll(Arrays.asList(world.getBuildings()));
         allUnits.addAll(Arrays.asList(world.getMinions()));
-        allUnits.addAll(Arrays.asList(world.getWizards()));
         allUnits.addAll(Arrays.asList(world.getTrees()));
-        allUnits.remove(self);
+        Arrays.asList(world.getWizards()).stream().filter((wizard) -> !wizard.isMe()).forEach((wizard) -> {
+            allUnits.add(wizard);
+        });
     }
     
     private void calcTreesPotentials()
@@ -411,7 +427,7 @@ public final class MyStrategy implements Strategy {
             }
         }
         Set<Long> diedIds = new HashSet<>(10);        
-        neutralMinionsInAgre.stream().filter((id) -> (!aliveIds.contains(id))).forEachOrdered((id) -> {
+        neutralMinionsInAgre.stream().filter((id) -> (!aliveIds.contains(id))).forEach((id) -> {
             diedIds.add(id);
         });
         neutralMinionsInAgre.removeAll(diedIds);
@@ -421,23 +437,23 @@ public final class MyStrategy implements Strategy {
     {
         List<PotentialField> fields = new ArrayList<>(20);
         
-        Arrays.asList(world.getWizards()).stream().filter((wizard) -> (!wizard.isMe() && self.getDistanceTo(wizard) < self.getVisionRange()*2.0)).forEachOrdered((wizard) -> {
+        Arrays.asList(world.getWizards()).stream().filter((wizard) -> (!wizard.isMe() && self.getDistanceTo(wizard) < self.getVisionRange()*2.0)).forEach((wizard) -> {
             fields.add(new WizardField(wizard, self));
         });
         List<Minion> minions = new ArrayList<>();
         enemyMinions.stream().filter((minion) -> (self.getDistanceTo(minion) < self.getVisionRange()*2.0)).forEach((minion) -> {
             minions.add(minion);
         });
-        Arrays.asList(world.getMinions()).stream().filter((minion) -> (minion.getFaction() == self.getFaction() && self.getDistanceTo(minion) < self.getVisionRange()*2.0)).forEachOrdered((minion) -> {
+        Arrays.asList(world.getMinions()).stream().filter((minion) -> (minion.getFaction() == self.getFaction() && self.getDistanceTo(minion) < self.getVisionRange()*2.0)).forEach((minion) -> {
             minions.add(minion);
         });        
-        minions.stream().filter((minion) -> (minion.getDistanceTo(self) < self.getVisionRange())).forEachOrdered((minion) -> {
+        minions.stream().filter((minion) -> (minion.getDistanceTo(self) < self.getVisionRange())).forEach((minion) -> {
             fields.add(new MinionField(minion, self));
         });
-        enemyBuildings.stream().filter((building) -> (building.getDistanceTo(self) < building.getAttackRange()*2.0)).forEachOrdered((building) -> {
+        enemyBuildings.stream().filter((building) -> (building.getDistanceTo(self) < building.getAttackRange()*2.0)).forEach((building) -> {
             fields.add(new EnemyTowerField(building, self));
         });
-        Arrays.asList(world.getProjectiles()).stream().filter((bullet) -> (bullet.getFaction() != self.getFaction() && self.getDistanceTo(bullet) < self.getVisionRange()*2.0)).forEachOrdered((bullet) -> {
+        Arrays.asList(world.getProjectiles()).stream().filter((bullet) -> (bullet.getFaction() != self.getFaction() && self.getDistanceTo(bullet) < self.getVisionRange()*2.0)).forEach((bullet) -> {
             fields.add(new BulletField(bullet, self));
         });
         
@@ -533,7 +549,7 @@ public final class MyStrategy implements Strategy {
     private List<Minion> getEnemyMinions()
     {
         List<Minion> minions = new ArrayList<>();
-        Arrays.asList(world.getMinions()).stream().filter((minion) -> (minion.getFaction() == enemyFaction || neutralMinionsInAgre.contains(minion.getId()))).forEachOrdered((minion) -> {
+        Arrays.asList(world.getMinions()).stream().filter((minion) -> (minion.getFaction() == enemyFaction || neutralMinionsInAgre.contains(minion.getId()))).forEach((minion) -> {
             minions.add(minion);
         });
         return minions;
