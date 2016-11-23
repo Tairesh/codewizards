@@ -11,6 +11,7 @@ public final class MyStrategy implements Strategy {
     
     private final IVisualClient debug = new VisualClient();
     private final PathFinder pathFinder = PathFinder.getInstance();
+    private final GlobalMap globalMap = GlobalMap.getInstance();
     private Random random;
     
     private Wizard self;
@@ -38,6 +39,7 @@ public final class MyStrategy implements Strategy {
     private List<LivingUnit> allUnits;
     
     private boolean isEnemiesNear;
+    private FakeLaneType lane;
     
     @Override
     public void move(Wizard self, World world, Game game, Move move)
@@ -48,26 +50,31 @@ public final class MyStrategy implements Strategy {
         Point selfPoint = new Point((int) self.getX()/POTENTIAL_GRID_COL_SIZE, (int) self.getY()/POTENTIAL_GRID_COL_SIZE);
                 
         if (isEnemiesNear) {
-            Point maxPotentialPoint = getBestExtremumPoint();
-            Color color = Color.YELLOW;
-            if (null == maxPotentialPoint) {
-                maxPotentialPoint = getMaxPotentialPoint();
-                List<Point> path = pathFinder.getPath(selfPoint, maxPotentialPoint);
-                if (path != null && path.size() > 0) {
-                    path.forEach((point) -> {
-                        debug.fillRect(point.x*POTENTIAL_GRID_COL_SIZE, point.y*POTENTIAL_GRID_COL_SIZE, (point.x+1)*POTENTIAL_GRID_COL_SIZE, (point.y+1)*POTENTIAL_GRID_COL_SIZE, Color.CYAN);
-                    });
-                    maxPotentialPoint = path.get(0);
+            Point targetPoint;
+            if (self.getLife() < 0.35*self.getMaxLife() || (self.getLife() < 0.75*self.getMaxLife() && potentialGrid[selfPoint.x][selfPoint.y] < 0)) {
+                Point2D back = globalMap.getPreviousWayPoint(lane, self);
+                targetPoint = new Point((int)back.x/POTENTIAL_GRID_COL_SIZE,(int)back.y/POTENTIAL_GRID_COL_SIZE);
+                if (isCrossing(back)) {
+                    List<Point> path = pathFinder.getPath(selfPoint, targetPoint);
+                    if (null != path && path.size() > 0) {
+                        targetPoint = path.get(0);
+                    }
                 }
-                color = Color.ORANGE;
+            } else {
+                targetPoint = getBestPotentialPoint();
             }
-            double x = maxPotentialPoint.x * POTENTIAL_GRID_COL_SIZE;
-            double y = maxPotentialPoint.y * POTENTIAL_GRID_COL_SIZE;
-            debug.line(self.getX(), self.getY(), x, y, color);
-            debug.fillCircle(x, y, POTENTIAL_GRID_COL_SIZE/2, Color.YELLOW);
-            Vector2D vector = new Vector2D(4.0, self.getAngleTo(x, y));
-            move.setSpeed(vector.getX());
-            move.setStrafeSpeed(vector.getY());
+            Color color = Color.YELLOW;
+            if (null == targetPoint) {
+                move.setSpeed(-10.0);
+            } else {
+                double x = targetPoint.x * POTENTIAL_GRID_COL_SIZE;
+                double y = targetPoint.y * POTENTIAL_GRID_COL_SIZE;
+                debug.line(self.getX(), self.getY(), x, y, color);
+                debug.fillCircle(x, y, POTENTIAL_GRID_COL_SIZE/2, Color.YELLOW);
+                Vector2D vector = new Vector2D(4.0, self.getAngleTo(x, y));
+                move.setSpeed(vector.getX());
+                move.setStrafeSpeed(vector.getY());
+            }
             
             LivingUnit bestTarget = getBestTarget();
             if (null == bestTarget) {
@@ -86,8 +93,16 @@ public final class MyStrategy implements Strategy {
                 move.setMinCastDistance(distance-bestTarget.getRadius()-game.getMagicMissileRadius());
             }
         } else {
-            move.setTurn(self.getAngleTo((self.getY()<500)?3700:300, 300));
-            move.setSpeed(4.0);
+            Point2D nextPoint = globalMap.getNextWayPoint(lane, self);
+            if (isCrossing(nextPoint)) {
+                List<Point> path = pathFinder.getPath(selfPoint, new Point((int)nextPoint.x/POTENTIAL_GRID_COL_SIZE, (int)nextPoint.y/POTENTIAL_GRID_COL_SIZE));
+                if (null != path && path.size() > 0) {
+                    Point next = path.get(0);
+                    nextPoint = new Point2D(next.x*POTENTIAL_GRID_COL_SIZE,next.y*POTENTIAL_GRID_COL_SIZE);
+                }
+            }
+            move.setTurn(self.getAngleTo(nextPoint.x, nextPoint.y));
+            move.setSpeed(10.0);
         }
         debug.endPost();
         debug.beginPre();
@@ -188,36 +203,112 @@ public final class MyStrategy implements Strategy {
         return bestTarget;
     }
     
-    private boolean isExtremum(int x, int y)
-    {
-        double value = potentialGrid[x][y];
-        
-        if (x > 0) {
-            if (potentialGrid[x-1][y] > value) {
-                return false;
-            }
-        }
-        if (y > 0) {
-            if (potentialGrid[x][y-1] > value) {
-                return false;
-            }
-        }
-        if (x < POTENTIAL_GRID_SIZE-1) {
-            if (potentialGrid[x+1][y] > value) {
-                return false;
-            }
-        }
-        if (y < POTENTIAL_GRID_SIZE-1) {
-            if (potentialGrid[x][y+1] > value) {
-                return false;
-            }
-        }
-        return true;
-    }
+//    private boolean isExtremum(int x, int y)
+//    {
+//        double value = potentialGrid[x][y];
+//        
+//        if (x > 0) {
+//            if (potentialGrid[x-1][y] > value) {
+//                return false;
+//            }
+//        }
+//        if (y > 0) {
+//            if (potentialGrid[x][y-1] > value) {
+//                return false;
+//            }
+//        }
+//        if (x < POTENTIAL_GRID_SIZE-1) {
+//            if (potentialGrid[x+1][y] > value) {
+//                return false;
+//            }
+//        }
+//        if (y < POTENTIAL_GRID_SIZE-1) {
+//            if (potentialGrid[x][y+1] > value) {
+//                return false;
+//            }
+//        }
+//        return true;
+//    }
     
-    private List<Point> getExtremumPoints()
+//    private List<Point> getExtremumPoints()
+//    {
+//        List<Point> points = new ArrayList<>();
+//        int startX = (int)(self.getX()-self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
+//        int startY = (int)(self.getY()-self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
+//        int endX = (int)(self.getX()+self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
+//        int endY = (int)(self.getY()+self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
+//        startX = (startX < 0) ? 0 : startX;
+//        startY = (startY < 0) ? 0 : startY;
+//        endX = (endX >= POTENTIAL_GRID_SIZE) ? POTENTIAL_GRID_SIZE-1 : endX;
+//        endY = (endY >= POTENTIAL_GRID_SIZE) ? POTENTIAL_GRID_SIZE-1 : endY;
+//        for (int x = startX; x <= endX; x++) {
+//            for (int y = startY; y <= endY; y++) {
+//                if (isExtremum(x,y)) {
+//                    points.add(new Point(x,y));
+//                }
+//            }
+//        }
+//        return points;
+//    }
+    
+//    private Point getBestExtremumPoint()
+//    {
+//        List<Point> extremums = getExtremumPoints();
+//        if (extremums.isEmpty()) {
+//            return null;
+//        }
+//        List<Point> bestPoints = new ArrayList<>();
+//        for (Point point : extremums) {
+//            LineSegment2D segment = new LineSegment2D(self.getX(), self.getY(), point.x*POTENTIAL_GRID_COL_SIZE, point.y*POTENTIAL_GRID_COL_SIZE);
+//            
+//            Vector2D vector = new Vector2D(self.getRadius()+1.0, MyMath.normalizeAngle(self.getAngle()-StrictMath.PI/2.0));
+//            LineSegment2D segmentLeft = segment.copy().add(vector);
+//            vector.rotate(StrictMath.PI);
+//            LineSegment2D segmentRight = segment.copy().add(vector);
+//            
+//            debug.line(segmentLeft.getX1(), segmentLeft.getY1(), segmentLeft.getX2(), segmentLeft.getY2(), Color.YELLOW);
+//            debug.line(segment.getX1(), segment.getY1(), segment.getX2(), segment.getY2(), Color.YELLOW);
+//            debug.line(segmentRight.getX1(), segmentRight.getY1(), segmentRight.getX2(), segmentRight.getY2(), Color.YELLOW);
+//            
+//            boolean isCrossing = false;
+//            for (LivingUnit unit : allUnits) {
+//                if (segmentLeft.isCrossingCircle(unit) || segmentRight.isCrossingCircle(unit) || segment.isCrossingCircle(unit)) {
+//                    isCrossing = true;
+//                    debug.fillCircle(unit.getX(), unit.getY(), unit.getRadius(), Color.ORANGE);
+//                    break;
+//                }
+//            }
+//            if (!isCrossing) {
+//                bestPoints.add(point);
+//            }
+//        }
+//        int selfX = (int)self.getX()/POTENTIAL_GRID_COL_SIZE;
+//        int selfY = (int)self.getY()/POTENTIAL_GRID_COL_SIZE;
+//        bestPoints.sort((Point point1, Point point2) -> {
+//            return (StrictMath.abs(point1.x-selfX) + StrictMath.abs(point1.y-selfY) < StrictMath.abs(point2.x-selfX) + StrictMath.abs(point2.y-selfY)) ? 1 : -1;
+//        });
+//        return bestPoints.size() > 0 ? bestPoints.get(0) : null;
+//    }
+    
+    private Point getBestPotentialPoint()
     {
-        List<Point> points = new ArrayList<>();
+        
+        Point point = getMaxPotentialPoint(Double.MAX_VALUE);
+        for (int i = 100; i > 0; i--) {
+            if (!isCrossing(new Point2D(point.x*POTENTIAL_GRID_COL_SIZE, point.y*POTENTIAL_GRID_COL_SIZE))) {
+                return point;
+            }
+            point = getMaxPotentialPoint(potentialGrid[point.x][point.y]);
+        }
+        return null;
+    }
+        
+    private Point getMaxPotentialPoint(double topBorder)
+    {
+        double max = -Double.MAX_VALUE;
+        int maxX = 0;
+        int maxY = 0;
+        
         int startX = (int)(self.getX()-self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
         int startY = (int)(self.getY()-self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
         int endX = (int)(self.getX()+self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
@@ -228,70 +319,7 @@ public final class MyStrategy implements Strategy {
         endY = (endY >= POTENTIAL_GRID_SIZE) ? POTENTIAL_GRID_SIZE-1 : endY;
         for (int x = startX; x <= endX; x++) {
             for (int y = startY; y <= endY; y++) {
-                if (isExtremum(x,y)) {
-                    points.add(new Point(x,y));
-                }
-            }
-        }
-        return points;
-    }
-    
-    private Point getBestExtremumPoint()
-    {
-        List<Point> extremums = getExtremumPoints();
-        if (extremums.isEmpty()) {
-            return null;
-        }
-        List<Point> bestPoints = new ArrayList<>();
-        for (Point point : extremums) {
-            LineSegment2D segment = new LineSegment2D(self.getX(), self.getY(), point.x*POTENTIAL_GRID_COL_SIZE, point.y*POTENTIAL_GRID_COL_SIZE);
-            
-            Vector2D vector = new Vector2D(self.getRadius()+1.0, MyMath.normalizeAngle(self.getAngle()-StrictMath.PI/2.0));
-            LineSegment2D segmentLeft = segment.copy().add(vector);
-            vector.rotate(StrictMath.PI);
-            LineSegment2D segmentRight = segment.copy().add(vector);
-            
-            debug.line(segmentLeft.getX1(), segmentLeft.getY1(), segmentLeft.getX2(), segmentLeft.getY2(), Color.YELLOW);
-            debug.line(segment.getX1(), segment.getY1(), segment.getX2(), segment.getY2(), Color.YELLOW);
-            debug.line(segmentRight.getX1(), segmentRight.getY1(), segmentRight.getX2(), segmentRight.getY2(), Color.YELLOW);
-            
-            boolean isCrossing = false;
-            for (LivingUnit unit : allUnits) {
-                if (segmentLeft.isCrossingCircle(unit) || segmentRight.isCrossingCircle(unit) || segment.isCrossingCircle(unit)) {
-                    isCrossing = true;
-                    debug.fillCircle(unit.getX(), unit.getY(), unit.getRadius(), Color.ORANGE);
-                    break;
-                }
-            }
-            if (!isCrossing) {
-                bestPoints.add(point);
-            }
-        }
-        int selfX = (int)self.getX()/POTENTIAL_GRID_COL_SIZE;
-        int selfY = (int)self.getY()/POTENTIAL_GRID_COL_SIZE;
-        bestPoints.sort((Point point1, Point point2) -> {
-            return (StrictMath.abs(point1.x-selfX) + StrictMath.abs(point1.y-selfY) < StrictMath.abs(point2.x-selfX) + StrictMath.abs(point2.y-selfY)) ? 1 : -1;
-        });
-        return bestPoints.size() > 0 ? bestPoints.get(0) : null;
-    }
-    
-    private Point getMaxPotentialPoint()
-    {
-        double max = -Double.MAX_VALUE;
-        int maxX = 0;
-        int maxY = 0;
-        
-        int startX = (int)(self.getX()-self.getVisionRange()/3.0)/POTENTIAL_GRID_COL_SIZE;
-        int startY = (int)(self.getY()-self.getVisionRange()/3.0)/POTENTIAL_GRID_COL_SIZE;
-        int endX = (int)(self.getX()+self.getVisionRange()/3.0)/POTENTIAL_GRID_COL_SIZE;
-        int endY = (int)(self.getY()+self.getVisionRange()/3.0)/POTENTIAL_GRID_COL_SIZE;
-        startX = (startX < 0) ? 0 : startX;
-        startY = (startY < 0) ? 0 : startY;
-        endX = (endX >= POTENTIAL_GRID_SIZE) ? POTENTIAL_GRID_SIZE-1 : endX;
-        endY = (endY >= POTENTIAL_GRID_SIZE) ? POTENTIAL_GRID_SIZE-1 : endY;
-        for (int x = startX; x <= endX; x++) {
-            for (int y = startY; y <= endY; y++) {
-                if (potentialGrid[x][y] > max) {
+                if (potentialGrid[x][y] > max && potentialGrid[x][y] < topBorder) {
                     max = potentialGrid[x][y];
                     maxX = x;
                     maxY = y;
@@ -366,6 +394,27 @@ public final class MyStrategy implements Strategy {
                 new Building(124215, 3950.0, 1306.7422221916638, 0, 0, 0, enemyFaction,game.getGuardianTowerRadius(),(int)StrictMath.round(game.getGuardianTowerLife()),(int)StrictMath.round(game.getGuardianTowerLife()), self.getStatuses(),BuildingType.GUARDIAN_TOWER,game.getGuardianTowerVisionRange(),game.getGuardianTowerAttackRange(),game.getGuardianTowerDamage(),0,0),
                 new Building(124215, 3600.0, 400.0, 0, 0, 0, enemyFaction,game.getFactionBaseRadius(),(int)StrictMath.round(game.getFactionBaseLife()),(int)StrictMath.round(game.getFactionBaseLife()), self.getStatuses(),BuildingType.FACTION_BASE,game.getFactionBaseVisionRange(),game.getFactionBaseAttackRange(),game.getFactionBaseDamage(),0,0),
             };
+            
+            
+            switch ((int) self.getId()) {
+                case 1:
+                case 2:
+                case 6:
+                case 7:
+                    lane = FakeLaneType.TOP;
+                    break;
+                case 3:
+                case 8:
+                    lane = FakeLaneType.MIDDLE;
+                    break;
+                case 4:
+                case 5:
+                case 9:
+                case 10:
+                    lane = FakeLaneType.BOTTOM;
+                    break;
+                default:
+            }
         }
     }
     
@@ -553,5 +602,26 @@ public final class MyStrategy implements Strategy {
             minions.add(minion);
         });
         return minions;
+    }
+    
+    private boolean isCrossing(Point2D point)
+    {
+        LineSegment2D segment = new LineSegment2D(self.getX(), self.getY(), point.x, point.y);
+        Vector2D vector = new Vector2D(self.getRadius()+1.0, MyMath.normalizeAngle(self.getAngle()-StrictMath.PI/2.0));
+        LineSegment2D segmentLeft = segment.copy().add(vector);
+        vector.rotate(StrictMath.PI);
+        LineSegment2D segmentRight = segment.copy().add(vector);
+
+        debug.line(segmentLeft.getX1(), segmentLeft.getY1(), segmentLeft.getX2(), segmentLeft.getY2(), Color.YELLOW);
+        debug.line(segment.getX1(), segment.getY1(), segment.getX2(), segment.getY2(), Color.YELLOW);
+        debug.line(segmentRight.getX1(), segmentRight.getY1(), segmentRight.getX2(), segmentRight.getY2(), Color.YELLOW);
+
+        for (LivingUnit unit : allUnits) {
+            if (segmentLeft.isCrossingCircle(unit) || segmentRight.isCrossingCircle(unit) || segment.isCrossingCircle(unit)) {
+                debug.fillCircle(unit.getX(), unit.getY(), unit.getRadius(), Color.ORANGE);
+                return true;
+            }
+        }
+        return false;
     }
 }

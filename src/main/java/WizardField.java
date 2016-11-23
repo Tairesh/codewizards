@@ -64,7 +64,7 @@ public class WizardField extends PotentialField {
                 double selfCastRange = self.getCastRange() + wizard.getRadius() + MyStrategy.game.getMagicMissileRadius();
                 if (distance < selfCastRange + colSize && distance > selfCastRange*selfCastRangeMinKoeff - colSize) {
                     double selfCooldownFactor = selfRemainingTicks < 5 ? (double)(5-selfRemainingTicks) : 0.0;
-                    value += 100.0 * selfCooldownFactor;
+                    value += 100.0/(distance/selfCastRange) * selfCooldownFactor;
                 }
             }
             
