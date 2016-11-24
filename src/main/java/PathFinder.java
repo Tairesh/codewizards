@@ -26,7 +26,7 @@ public class PathFinder {
     {
         double potential = MyStrategy.potentialGrid[point.x][point.y];
         if (potential < 0) {
-            return potential*-1.0;
+            return potential*-0.1;
         } else {
             return 0.0;
         }
@@ -73,19 +73,7 @@ public class PathFinder {
             }
             
             // поиск соседей
-            List<PathFinderPoint> neigbors = new ArrayList<>(4);
-            if (currentPoint.x > 0) { // влево
-                neigbors.add(new PathFinderPoint(currentPoint.x-1, currentPoint.y));
-            }
-            if (currentPoint.x < MyStrategy.POTENTIAL_GRID_SIZE-1) { // вправо
-                neigbors.add(new PathFinderPoint(currentPoint.x+1, currentPoint.y));
-            }
-            if (currentPoint.y > 0) { // вверх
-                neigbors.add(new PathFinderPoint(currentPoint.x, currentPoint.y-1));
-            }
-            if (currentPoint.y < MyStrategy.POTENTIAL_GRID_SIZE-1) { // вниз
-                neigbors.add(new PathFinderPoint(currentPoint.x, currentPoint.y+1));
-            }
+            List<PathFinderPoint> neigbors = currentPoint.getNeighbors();
             
             for (PathFinderPoint newPoint : neigbors) {
                 if (added[newPoint.x][newPoint.y]) {
