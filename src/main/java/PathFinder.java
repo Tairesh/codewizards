@@ -2,8 +2,6 @@
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import model.World;
-
 
 public class PathFinder {
     
@@ -73,7 +71,7 @@ public class PathFinder {
             }
             
             // поиск соседей
-            List<PathFinderPoint> neigbors = currentPoint.getNeighbors();
+            List<PathFinderPoint> neigbors = currentPoint.getNeighbours();
             
             for (PathFinderPoint newPoint : neigbors) {
                 if (added[newPoint.x][newPoint.y]) {

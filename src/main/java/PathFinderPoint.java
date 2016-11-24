@@ -1,4 +1,7 @@
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class PathFinderPoint extends Point {
     
     public double h;
@@ -19,32 +22,32 @@ public class PathFinderPoint extends Point {
         return point.getF() > getF() ? -1 : 1;
     }
 
-    public List<PathFinderPoint> getNeighbors()
+    public List<PathFinderPoint> getNeighbours()
     {
         List<PathFinderPoint> neigbors = new ArrayList<>(8);
-        if (currentPoint.x > 0) { // влево
-            neigbors.add(new PathFinderPoint(currentPoint.x-1, currentPoint.y));
+        if (x > 0) { // влево
+            neigbors.add(new PathFinderPoint(x-1, y));
         }
-        if (currentPoint.x < MyStrategy.POTENTIAL_GRID_SIZE-1) { // вправо
-            neigbors.add(new PathFinderPoint(currentPoint.x+1, currentPoint.y));
+        if (x < MyStrategy.POTENTIAL_GRID_SIZE-1) { // вправо
+            neigbors.add(new PathFinderPoint(x+1, y));
         }
-        if (currentPoint.y > 0) { // вверх
-            neigbors.add(new PathFinderPoint(currentPoint.x, currentPoint.y-1));
+        if (y > 0) { // вверх
+            neigbors.add(new PathFinderPoint(x, y-1));
         }
-        if (currentPoint.y < MyStrategy.POTENTIAL_GRID_SIZE-1) { // вниз
-            neigbors.add(new PathFinderPoint(currentPoint.x, currentPoint.y+1));
+        if (y < MyStrategy.POTENTIAL_GRID_SIZE-1) { // вниз
+            neigbors.add(new PathFinderPoint(x, y+1));
         }
-        if (currentPoint.x > 0 && currentPoint.y > 0) { // влево вверх
-            neigbors.add(new PathFinderPoint(currentPoint.x-1, currentPoint.y-1));
+        if (x > 0 && y > 0) { // влево вверх
+            neigbors.add(new PathFinderPoint(x-1, y-1));
         }
-        if (currentPoint.x < MyStrategy.POTENTIAL_GRID_SIZE-1 && currentPoint.y > 0) { // вправо вверх
-            neigbors.add(new PathFinderPoint(currentPoint.x+1, currentPoint.y-1));
+        if (x < MyStrategy.POTENTIAL_GRID_SIZE-1 && y > 0) { // вправо вверх
+            neigbors.add(new PathFinderPoint(x+1, y-1));
         }
-        if (currentPoint.x > 0 && currentPoint.y < MyStrategy.POTENTIAL_GRID_SIZE-1) { // влево вниз
-            neigbors.add(new PathFinderPoint(currentPoint.x-1, currentPoint.y+1));
+        if (x > 0 && y < MyStrategy.POTENTIAL_GRID_SIZE-1) { // влево вниз
+            neigbors.add(new PathFinderPoint(x-1, y+1));
         }
-        if (currentPoint.x < MyStrategy.POTENTIAL_GRID_SIZE-1 && currentPoint.y < MyStrategy.POTENTIAL_GRID_SIZE-1) { // вправо вниз
-            neigbors.add(new PathFinderPoint(currentPoint.x+1, currentPoint.y+1));
+        if (x < MyStrategy.POTENTIAL_GRID_SIZE-1 && y < MyStrategy.POTENTIAL_GRID_SIZE-1) { // вправо вниз
+            neigbors.add(new PathFinderPoint(x+1, y+1));
         }
         return neigbors;
     }
