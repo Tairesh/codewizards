@@ -134,7 +134,7 @@ public final class MyStrategy implements Strategy {
         if (enemyMinions.stream().anyMatch((minion) -> (self.getDistanceTo(minion) < self.getVisionRange()))) {
             return true;
         }        
-        if (Arrays.asList(world.getWizards()).stream().anyMatch((wizard) -> (wizard.getFaction() == enemyFaction && self.getDistanceTo(wizard) < self.getVisionRange()))) {
+        if (enemyWizards.stream().anyMatch((wizard) -> (self.getDistanceTo(wizard) < self.getVisionRange()))) {
             return true;
         }
         return false;
@@ -252,13 +252,31 @@ public final class MyStrategy implements Strategy {
     
     private List<Point> getBestPoints(int n)
     {
-        List<Point> list = new ArrayList<>(n);        
-        Point point = getMaxPotentialPoint(Double.MAX_VALUE);
-        for (int i = 0; i < n; ){
+        List<Point> points = new ArrayList<>(POTENTIAL_GRID_SIZE*POTENTIAL_GRID_SIZE);
+        
+        int startX = (int)(self.getX()-self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
+        int startY = (int)(self.getY()-self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
+        int endX = (int)(self.getX()+self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
+        int endY = (int)(self.getY()+self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
+        startX = (startX < 0) ? 0 : startX;
+        startY = (startY < 0) ? 0 : startY;
+        endX = (endX >= POTENTIAL_GRID_SIZE) ? POTENTIAL_GRID_SIZE-1 : endX;
+        endY = (endY >= POTENTIAL_GRID_SIZE) ? POTENTIAL_GRID_SIZE-1 : endY;
+        for (int x = startX; x <= endX; x++) {
+            for (int y = startY; y <= endY; y++) {
+                points.add(new Point(x,y));
+            }
+        }
+        
+        points.sort((o1, o2) -> potentialGrid[o1.x][o1.y] > potentialGrid[o2.x][o2.y] ? -1 : 1);
+
+        List<Point> list = new ArrayList<>(n);
+        for (Point point : points){
             if (!isCrossing(new Point2D(point.x*POTENTIAL_GRID_COL_SIZE, point.y*POTENTIAL_GRID_COL_SIZE))) {
                 list.add(point);
-                point = getMaxPotentialPoint(potentialGrid[point.x][point.y]);
-                i++;
+                if (list.size() == n) {
+                    break;
+                }
             }
         }
         return list;
@@ -281,33 +299,33 @@ public final class MyStrategy implements Strategy {
 //        }
 //        return null;
 //    }
-        
-    private Point getMaxPotentialPoint(double topBorder)
-    {
-        double max = -Double.MAX_VALUE;
-        int maxX = 0;
-        int maxY = 0;
-        
-        int startX = (int)(self.getX()-self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
-        int startY = (int)(self.getY()-self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
-        int endX = (int)(self.getX()+self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
-        int endY = (int)(self.getY()+self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
-        startX = (startX < 0) ? 0 : startX;
-        startY = (startY < 0) ? 0 : startY;
-        endX = (endX >= POTENTIAL_GRID_SIZE) ? POTENTIAL_GRID_SIZE-1 : endX;
-        endY = (endY >= POTENTIAL_GRID_SIZE) ? POTENTIAL_GRID_SIZE-1 : endY;
-        for (int x = startX; x <= endX; x++) {
-            for (int y = startY; y <= endY; y++) {
-                if (potentialGrid[x][y] > max && potentialGrid[x][y] < topBorder) {
-                    max = potentialGrid[x][y];
-                    maxX = x;
-                    maxY = y;
-                }
-            }
-        }
-        
-        return new Point(maxX, maxY);
-    }
+//        
+//    private Point getMaxPotentialPoint(double topBorder)
+//    {
+//        double max = -Double.MAX_VALUE;
+//        int maxX = 0;
+//        int maxY = 0;
+//        
+//        int startX = (int)(self.getX()-self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
+//        int startY = (int)(self.getY()-self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
+//        int endX = (int)(self.getX()+self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
+//        int endY = (int)(self.getY()+self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
+//        startX = (startX < 0) ? 0 : startX;
+//        startY = (startY < 0) ? 0 : startY;
+//        endX = (endX >= POTENTIAL_GRID_SIZE) ? POTENTIAL_GRID_SIZE-1 : endX;
+//        endY = (endY >= POTENTIAL_GRID_SIZE) ? POTENTIAL_GRID_SIZE-1 : endY;
+//        for (int x = startX; x <= endX; x++) {
+//            for (int y = startY; y <= endY; y++) {
+//                if (potentialGrid[x][y] > max && potentialGrid[x][y] < topBorder) {
+//                    max = potentialGrid[x][y];
+//                    maxX = x;
+//                    maxY = y;
+//                }
+//            }
+//        }
+//        
+//        return new Point(maxX, maxY);
+//    }
     
     private Color debugColor(double value)
     {
@@ -638,7 +656,7 @@ public final class MyStrategy implements Strategy {
     private boolean isCrossing(Point2D point)
     {
         LineSegment2D segment = new LineSegment2D(self.getX(), self.getY(), point.x, point.y);
-        Vector2D vector = new Vector2D(self.getRadius()+1.0, MyMath.normalizeAngle(self.getAngle()-StrictMath.PI/2.0));
+        Vector2D vector = new Vector2D(self.getRadius()+1.0, MyMath.normalizeAngle(self.getAngle()+self.getAngleTo(point.x, point.y)-StrictMath.PI/2.0));
         LineSegment2D segmentLeft = segment.copy().add(vector);
         vector.rotate(StrictMath.PI);
         LineSegment2D segmentRight = segment.copy().add(vector);
