@@ -24,6 +24,7 @@ public final class MyStrategy implements Strategy {
     public static double[][] potentialGrid;
     private double[][] staticPotentialGrid;
     private double[][] treesPotentialGrid;
+    private double[][] lanePotentialGrid;
     
     private Faction enemyFaction;
     
@@ -42,6 +43,9 @@ public final class MyStrategy implements Strategy {
     
     private boolean isEnemiesNear;
     private FakeLaneType lane;
+    
+    private Point2D previousWaypoint;
+    private Point2D nextWaypoint;
     
     @Override
     public void move(Wizard self, World world, Game game, Move move)
@@ -80,7 +84,7 @@ public final class MyStrategy implements Strategy {
         if (isEnemiesNear) {
             Point targetPoint;
             if (self.getLife() < 0.35*self.getMaxLife() || (self.getLife() < 0.75*self.getMaxLife() && potentialGrid[selfPoint.x][selfPoint.y] < 0)) {
-                Point2D back = globalMap.getPreviousWayPoint(lane, self);
+                Point2D back = previousWaypoint;
                 debug.line(self.getX(), self.getY(), back.x, back.y, Color.MAGENTA);
                 targetPoint = new Point((int)back.x/POTENTIAL_GRID_COL_SIZE,(int)back.y/POTENTIAL_GRID_COL_SIZE);
                 if (isCrossing(back)) {
@@ -121,7 +125,7 @@ public final class MyStrategy implements Strategy {
                 move.setMinCastDistance(distance-bestTarget.getRadius()-game.getMagicMissileRadius());
             }
         } else {
-            Point2D nextPoint = globalMap.getNextWayPoint(lane, self);
+            Point2D nextPoint = nextWaypoint;
             if (isCrossing(nextPoint)) {
                 List<Point> path = pathFinder.getPath(selfPoint, new Point((int)nextPoint.x/POTENTIAL_GRID_COL_SIZE, (int)nextPoint.y/POTENTIAL_GRID_COL_SIZE));
                 if (null != path && path.size() > 0) {
@@ -222,6 +226,13 @@ public final class MyStrategy implements Strategy {
                 score += 10;
             }
             
+            if (unit.getDistanceTo(self)+self.getRadius() < game.getOrcWoodcutterAttackRange()*3.0 && unit.getAngleTo(self) < StrictMath.PI/3.0) {
+                score += 100;
+            }
+            
+            score += 1 - unit.getLife()/unit.getMaxLife();
+            
+            debug.text(unit.getX(), unit.getY()+unit.getRadius()+5.0, ""+score, Color.CYAN);
             if (score > maxScore) {
                 maxScore = score;
                 bestTarget = unit;
@@ -391,6 +402,7 @@ public final class MyStrategy implements Strategy {
             potentialGrid = new double[POTENTIAL_GRID_SIZE][POTENTIAL_GRID_SIZE];
             staticPotentialGrid = new double[POTENTIAL_GRID_SIZE][POTENTIAL_GRID_SIZE];
             treesPotentialGrid = new double[POTENTIAL_GRID_SIZE][POTENTIAL_GRID_SIZE];
+            lanePotentialGrid = new double[POTENTIAL_GRID_SIZE][POTENTIAL_GRID_SIZE];
             
             // заполнение статического поля потенциалов
             double value = -10.0;
@@ -398,6 +410,10 @@ public final class MyStrategy implements Strategy {
                 for (int y = POTENTIAL_GRID_SIZE-1; y >= 0; y--) {                    
                     if (x == 0 || y == 0 || x == POTENTIAL_GRID_SIZE-1 || y == POTENTIAL_GRID_SIZE-1) {
                         staticPotentialGrid[x][y] = -500.0;
+                    } else if (x+y < 10) {
+                        staticPotentialGrid[x][y] = -50.0*(10-x-y);
+                    } else if (x+y > POTENTIAL_GRID_SIZE+POTENTIAL_GRID_SIZE-10) {
+                        staticPotentialGrid[x][y] = -50.0*(x+y);
                     } else {
                         staticPotentialGrid[x][y] = value;
                     }
@@ -464,6 +480,9 @@ public final class MyStrategy implements Strategy {
         this.game = game;
         this.move = move;
         
+        previousWaypoint = globalMap.getPreviousWayPoint(lane, self);
+        nextWaypoint = globalMap.getNextWayPoint(lane, self);
+        
         checkMinionsInAgre();
         checkEnemyWizards();
         
@@ -472,6 +491,7 @@ public final class MyStrategy implements Strategy {
         enemyWizards = getEnemyWizards();
         
         calcTreesPotentials();
+        calcLanePotentials();
         calcPotentials();
         isEnemiesNear = isEnemiesNear();
         
@@ -498,6 +518,28 @@ public final class MyStrategy implements Strategy {
                     for (TreeField field : fields) {
                         treesPotentialGrid[x][y] += field.getValue(x, y);
                     }
+                }
+            }
+        }
+    }
+    
+    private void calcLanePotentials()
+    {
+        if (world.getTickIndex() % 50 == 0) {
+            
+            Point prev = new Point((int)previousWaypoint.x/POTENTIAL_GRID_COL_SIZE,(int)previousWaypoint.y/POTENTIAL_GRID_COL_SIZE);
+            Point next = new Point((int)nextWaypoint.x/POTENTIAL_GRID_COL_SIZE,(int)nextWaypoint.y/POTENTIAL_GRID_COL_SIZE);
+            
+            for (int x = StrictMath.max(next.x-20,0); x < StrictMath.min(next.x+20,POTENTIAL_GRID_SIZE); x++) {
+                for (int y = StrictMath.max(next.y-20,0); y < StrictMath.min(next.y+20,POTENTIAL_GRID_SIZE); y++) {
+                    double dist = next.getDistanceTo(x, y);
+                    lanePotentialGrid[x][y] = (40.0 - dist);
+                }
+            }
+            for (int x = StrictMath.max(prev.x-20,0); x < StrictMath.min(prev.x+20,POTENTIAL_GRID_SIZE); x++) {
+                for (int y = StrictMath.max(prev.y-20,0); y < StrictMath.min(prev.y+20,POTENTIAL_GRID_SIZE); y++) {
+                    double dist = next.getDistanceTo(x, y);
+                    lanePotentialGrid[x][y] = (40.0 - dist);
                 }
             }
         }
@@ -595,6 +637,7 @@ public final class MyStrategy implements Strategy {
                 
                 potentialGrid[x][y] += staticPotentialGrid[x][y];
                 potentialGrid[x][y] += treesPotentialGrid[x][y];
+                potentialGrid[x][y] += lanePotentialGrid[x][y];
             }            
         }
     }
