@@ -3,6 +3,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import model.*;
@@ -246,6 +247,11 @@ public final class MyStrategy implements Strategy {
             }
             
             score += 1 - unit.getLife()/unit.getMaxLife();
+            
+//            if (unit.getClass() == Wizard.class) {
+//                Player p = Arrays.asList(world.getPlayers()).stream().filter((player) -> player.getId() == ((Wizard)unit).getOwnerPlayerId()).findFirst().get();
+//                score += (double)p.getScore() / 1000.0;
+//            }
             
             debug.text(unit.getX(), unit.getY()+unit.getRadius()+5.0, ""+score, Color.CYAN);
             if (score > maxScore) {
