@@ -52,9 +52,14 @@ public class Point2D {
         return new Point((int) StrictMath.round(x), (int) StrictMath.round(y));
     }
 
-    void add(Vector2D vector) {
+    public void add(Vector2D vector) {
         x += vector.getX();
         y += vector.getY();
+    }
+    
+    public boolean equals(Point2D point)
+    {
+        return StrictMath.abs(x-point.x) < 0.1 && StrictMath.abs(y-point.y) < 0.1;
     }
 
 }
