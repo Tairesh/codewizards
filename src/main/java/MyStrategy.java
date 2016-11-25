@@ -10,8 +10,8 @@ import model.*;
 
 public final class MyStrategy implements Strategy {
     
-    private final IVisualClient debug = new EmptyVisualClient();
-    private final boolean debugEnabled = false;
+    private final IVisualClient debug = new VisualClient();
+    private final boolean debugEnabled = true;
     private final PathFinder pathFinder = PathFinder.getInstance();
     private final GlobalMap globalMap = GlobalMap.getInstance();
     private Random random;
@@ -35,6 +35,7 @@ public final class MyStrategy implements Strategy {
     };    
     private Building[] fakeBuildings;
     private Wizard[] fakeWizards;
+    private Wizard[] defaultFakeWizards;
     private final Set<Long> neutralMinionsInAgre  = new HashSet<>(10);
     
     private List<Building> enemyBuildings; // вместе с фейковыми
@@ -470,6 +471,7 @@ public final class MyStrategy implements Strategy {
                 new Wizard(4, 3700, 300, 0, 0, 0, enemyFaction, game.getWizardRadius(), game.getWizardBaseLife(), game.getWizardBaseLife(), new Status[]{}, 12345, false, game.getWizardBaseMana(), game.getWizardBaseMana(), game.getWizardVisionRange(), game.getWizardCastRange(), 0, 1, new SkillType[]{}, 0, new int[]{0,0,0,0,0}, false, new Message[]{}),
                 new Wizard(5, 3700, 300, 0, 0, 0, enemyFaction, game.getWizardRadius(), game.getWizardBaseLife(), game.getWizardBaseLife(), new Status[]{}, 12345, false, game.getWizardBaseMana(), game.getWizardBaseMana(), game.getWizardVisionRange(), game.getWizardCastRange(), 0, 1, new SkillType[]{}, 0, new int[]{0,0,0,0,0}, false, new Message[]{}),
             };
+            defaultFakeWizards = Arrays.copyOf(fakeWizards, fakeWizards.length);
             
             
             switch ((int) self.getId()) {
@@ -562,6 +564,11 @@ public final class MyStrategy implements Strategy {
             }
         }
         return false;
+    }
+    
+    private boolean anyoneSee(Unit unit)
+    {
+        return anyoneSee(new Point2D(unit));
     }
     
     private void checkBonuses()
@@ -737,6 +744,7 @@ public final class MyStrategy implements Strategy {
     
     private void checkEnemyWizards()
     {
+        Set<Long> updated = new HashSet<>(5);
         for (Wizard wizard : world.getWizards()) {
             if (wizard.getFaction() == enemyFaction) {
                 int i = (int)wizard.getId() - 1;
@@ -744,6 +752,14 @@ public final class MyStrategy implements Strategy {
                     i -= 5;
                 }
                 fakeWizards[i] = wizard;
+                updated.add(wizard.getId());
+            }
+        }
+        for (int i = 0; i < 5; i++) {
+            if (!updated.contains(fakeWizards[i].getId())) {
+                if (anyoneSee(fakeWizards[i])) {
+                    fakeWizards[i] = defaultFakeWizards[i];
+                }
             }
         }
     }
