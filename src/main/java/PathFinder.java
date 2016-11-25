@@ -43,8 +43,23 @@ public class PathFinder {
         return result;
     }
     
+    private Point getOtherFinishPoint(Point _point, boolean recursive)
+    {
+        PathFinderPoint point = new PathFinderPoint(_point.x, _point.y);
+        List<PathFinderPoint> neigbors = point.getNeighbours();
+        PathFinderPoint max = Collections.max(neigbors, (o1, o2) -> MyStrategy.potentialGrid[o1.x][o1.y] < MyStrategy.potentialGrid[o2.x][o2.y] ? -1 : 1);
+        Point maxPoint = new Point(max.x, max.y);
+        return (MyStrategy.potentialGrid[max.x][max.y] < 0 && recursive) ? getOtherFinishPoint(maxPoint, false) : maxPoint;
+    }
+    
     public List<Point> getPath(Point from, Point to)
     {
+        if (MyStrategy.potentialGrid[to.x][to.y] < 0) {
+            to = getOtherFinishPoint(to, true);
+        }
+        if (MyStrategy.potentialGrid[to.x][to.y] < 0) {
+            return null;
+        }
         List<PathFinderPoint> openList = new ArrayList<>();
         boolean[][] added = new boolean[MyStrategy.POTENTIAL_GRID_SIZE][MyStrategy.POTENTIAL_GRID_SIZE];
         
@@ -54,7 +69,7 @@ public class PathFinder {
         
         openList.add(start);
         
-        while(openList.size() > 0) {
+        while(openList.size() > 0 && openList.size() < 5000) {
             PathFinderPoint currentPoint = Collections.min(openList, (o1, o2) -> o1.compareTo(o2));
                         
             openList.remove(currentPoint);

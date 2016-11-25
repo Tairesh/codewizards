@@ -49,12 +49,39 @@ public final class MyStrategy implements Strategy {
         initStrategy(self, world, game, move);
         initTick(self, world, game, move);
         debug.beginPost();
+//        move.setAction(ActionType.MAGIC_MISSILE);
+////        Wizard fake = new Wizard(123, self.getX(), self.getY(), self.getSpeedX(), self.getSpeedY(), self.getAngle(), enemyFaction, self.getRadius(), self.getLife(), self.getMaxLife(), self.getStatuses(), self.getOwnerPlayerId(), false, self.getMana(), self.getMaxMana(), self.getVisionRange(), self.getCastRange(), self.getXp(), self.getLevel(), self.getSkills(), 0, new int[]{0,0,0,0,0,0}, false, self.getMessages());
+////        Minion fake = new Minion(123, self.getX(), self.getY(), self.getSpeedX(), self.getSpeedY(), self.getAngle(), enemyFaction, game.getMinionRadius(), game.getMinionLife(), game.getMinionLife(), self.getStatuses(), MinionType.ORC_WOODCUTTER, game.getMinionVisionRange(), game.getOrcWoodcutterDamage(), game.getOrcWoodcutterActionCooldownTicks(), 0);
+//        Building fake = new Building(124214, self.getX(), self.getY(), 0, 0, 0, enemyFaction,game.getGuardianTowerRadius(),(int)StrictMath.round(game.getGuardianTowerLife()),(int)StrictMath.round(game.getGuardianTowerLife()), self.getStatuses(),BuildingType.GUARDIAN_TOWER,game.getGuardianTowerVisionRange(),game.getGuardianTowerAttackRange(),game.getGuardianTowerDamage(),0,0);
+//        PotentialField field = new EnemyTowerField(fake, self);
+//        int startX = (int)(self.getX()-self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
+//        int startY = (int)(self.getY()-self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
+//        int endX = (int)(self.getX()+self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
+//        int endY = (int)(self.getY()+self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
+//        startX = (startX < 0) ? 0 : startX;
+//        startY = (startY < 0) ? 0 : startY;
+//        endX = (endX >= POTENTIAL_GRID_SIZE) ? POTENTIAL_GRID_SIZE-1 : endX;
+//        endY = (endY >= POTENTIAL_GRID_SIZE) ? POTENTIAL_GRID_SIZE-1 : endY;
+//        for (int x = startX; x <= endX; x++) {
+//            for (int y = startY; y <= endY; y++) {
+//                debug.fillRect(x*POTENTIAL_GRID_COL_SIZE, y*POTENTIAL_GRID_COL_SIZE, (x+1)*POTENTIAL_GRID_COL_SIZE, (y+1)*POTENTIAL_GRID_COL_SIZE, debugColor(field.getValue(x, y)));
+//                debug.rect(x*POTENTIAL_GRID_COL_SIZE, y*POTENTIAL_GRID_COL_SIZE, (x+1)*POTENTIAL_GRID_COL_SIZE, (y+1)*POTENTIAL_GRID_COL_SIZE, Color.BLACK);
+//                debug.text(x*POTENTIAL_GRID_COL_SIZE+5, (y+1)*POTENTIAL_GRID_COL_SIZE-5, ""+(int)field.getValue(x, y), Color.BLACK);
+//            }
+//        }
+//        
+//        if (true) {
+//            debug.endPost();
+//            return;
+//        }
+        
         Point selfPoint = new Point((int) self.getX()/POTENTIAL_GRID_COL_SIZE, (int) self.getY()/POTENTIAL_GRID_COL_SIZE);
                 
         if (isEnemiesNear) {
             Point targetPoint;
             if (self.getLife() < 0.35*self.getMaxLife() || (self.getLife() < 0.75*self.getMaxLife() && potentialGrid[selfPoint.x][selfPoint.y] < 0)) {
                 Point2D back = globalMap.getPreviousWayPoint(lane, self);
+                debug.line(self.getX(), self.getY(), back.x, back.y, Color.MAGENTA);
                 targetPoint = new Point((int)back.x/POTENTIAL_GRID_COL_SIZE,(int)back.y/POTENTIAL_GRID_COL_SIZE);
                 if (isCrossing(back)) {
                     List<Point> path = pathFinder.getPath(selfPoint, targetPoint);
@@ -237,14 +264,15 @@ public final class MyStrategy implements Strategy {
     
     private Point getBestPoint()
     {
+        Point selfPoint = new Point((int)self.getX()/POTENTIAL_GRID_COL_SIZE,(int)self.getY()/POTENTIAL_GRID_COL_SIZE);
         List<Point> list = getBestPoints();
         Point best = null;
-        double maxValue = -Double.MAX_VALUE;
+        double minDist = Double.MAX_VALUE;
         for (Point point : list) {
-            double value = getPointValueWithNeighbours(point);
-            if (value > maxValue) {
+            double dist = selfPoint.getDistanceTo(point);
+            if (dist < minDist) {
                 best = point;
-                maxValue = value;
+                minDist = dist;
             }
         }
         return best;
@@ -268,7 +296,7 @@ public final class MyStrategy implements Strategy {
             }
         }
         
-        points.sort((o1, o2) -> potentialGrid[o1.x][o1.y] > potentialGrid[o2.x][o2.y] ? -1 : 1);
+        points.sort((o1, o2) -> getPointValueWithNeighbours(o1) > getPointValueWithNeighbours(o2) ? -1 : 1);
 
         List<Point> list = new ArrayList<>(n);
         for (Point point : points){

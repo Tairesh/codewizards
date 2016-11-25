@@ -22,7 +22,7 @@ public class MinionField extends PotentialField {
         
         switch (minion.getType()) {
             case ORC_WOODCUTTER:
-                maxCastDist = self.getRadius() + MyStrategy.game.getOrcWoodcutterAttackRange();
+                maxCastDist = self.getRadius() + MyStrategy.game.getOrcWoodcutterAttackRange() + 50.0; // хардкод чтобы сильнее боялся орков
                 maxCastSector = MyStrategy.game.getOrcWoodcutterAttackSector() / 2.0;
                 break;
             case FETISH_BLOWDART:
@@ -57,7 +57,7 @@ public class MinionField extends PotentialField {
                 if (distance > selfCastRange + colSize) {
                     value = 0.0;
                 } else {
-                    value = 50.0/(distance/selfCastRange);
+                    value = -10.0/(distance/selfCastRange);
                 }
                 
                 if (distance < selfCastRange + colSize && distance > selfCastRange*selfCastRangeMinKoeff - colSize) {
@@ -81,7 +81,7 @@ public class MinionField extends PotentialField {
                 double distFactor = distance / (maxCastDist + colSize); // 0 мы вплотную 1 мы на макс расстоянии атаки
                 double dangerAngle = angleKoeff * (maxCastSector / 2.0) / distFactor;
 
-                value = (absAngle <= dangerAngle) ? -100.0 : -100.0/(absAngle-dangerAngle);
+                value = (absAngle <= dangerAngle) ? -200.0 : -40.0/(absAngle-dangerAngle);
                 
                 double cooldownFactor = remainingTicks < 20 ? (double)(20-remainingTicks)/20.0 : 1.0;
                 value *= cooldownFactor;

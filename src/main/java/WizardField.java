@@ -39,7 +39,7 @@ public class WizardField extends PotentialField {
                 if (distance > maxCastDist*5 + colSize) {
                     return 0.0;
                 } else {
-                    return 100.0/(distance/maxCastDist);
+                    return 150.0/(distance/maxCastDist);
                 }
             }
         } else {
@@ -56,7 +56,7 @@ public class WizardField extends PotentialField {
                 double distFactor = distance / (maxCastDist + colSize); // 0 мы вплотную 1 мы на макс расстоянии атаки
                 double dangerAngle = angleKoeff * (MyStrategy.game.getStaffSector() / 2.0) / distFactor;
 
-                value = (absAngle <= dangerAngle) ? -200.0 : -10.0/(absAngle-dangerAngle);
+                value = (absAngle <= dangerAngle) ? -200.0 : -40.0/(absAngle-dangerAngle);
 
                 double cooldownFactor = wizardRemainingTicks < 20 ? (double)(20-wizardRemainingTicks)/20.0 : 1.0;
                 value *= cooldownFactor;

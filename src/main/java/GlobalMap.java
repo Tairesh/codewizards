@@ -225,17 +225,17 @@ public class GlobalMap
             }
         }
         
-        Square closestSquare = null;
+        int closestSquareIndex = -1;
         int minDist = Integer.MAX_VALUE;
         for (int i = lineSquares.length-1; i > 0; i--) {
             int dist = lineSquares[i].getDistanceTo(point);
             if (dist < minDist) {
-                closestSquare = lineSquares[i];
+                closestSquareIndex = i;
                 minDist = dist;
             }
         }
-        if (closestSquare != null) {
-            return closestSquare.getCenter();
+        if (closestSquareIndex >= 0) {
+            return (minDist == 1 && closestSquareIndex > 0) ? lineSquares[closestSquareIndex-1].getCenter() : lineSquares[closestSquareIndex].getCenter();
         }
         
         return lineSquares[0].getCenter();
