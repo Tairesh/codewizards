@@ -69,13 +69,7 @@ public class GlobalMap
         map.put(FakeLaneType.BONUS1_TO_TOP, new Square[]{
             new Square(2,2),
             new Square(1,1),
-            new Square(1,0),
-            new Square(2,0),
-            new Square(3,0),
-            new Square(4,0),
-            new Square(5,0),
-            new Square(6,0),
-            new Square(7,0)
+            new Square(0,0)
         });
         map.put(FakeLaneType.MIDDLE_TO_BONUS1, new Square[]{
             new Square(0,7),
@@ -88,10 +82,7 @@ public class GlobalMap
         map.put(FakeLaneType.BONUS1_TO_MIDDLE, new Square[]{
             new Square(2,2),
             new Square(3,3),
-            new Square(4,3),
-            new Square(5,2),
-            new Square(6,1),
-            new Square(7,0)
+            new Square(4,3)
         });
         map.put(FakeLaneType.MIDDLE_TO_BONUS2, new Square[]{
             new Square(0,7),
@@ -104,21 +95,12 @@ public class GlobalMap
         map.put(FakeLaneType.BONUS2_TO_MIDDLE, new Square[]{
             new Square(5,5),
             new Square(4,4),
-            new Square(4,3),
-            new Square(5,2),
-            new Square(6,1),
-            new Square(7,0)
+            new Square(4,3)
         });
         map.put(FakeLaneType.BONUS2_TO_BOTTOM, new Square[]{
             new Square(5,5),
             new Square(6,6),
-            new Square(7,6),
-            new Square(7,5),
-            new Square(7,4),
-            new Square(7,3),
-            new Square(7,2),
-            new Square(7,1),
-            new Square(7,0)
+            new Square(7,7)
         });
         map.put(FakeLaneType.BOTTOM_TO_BONUS2, new Square[]{
             new Square(0,7),
@@ -203,7 +185,7 @@ public class GlobalMap
         int min = -1;
         for (int i = 0; i < squares.length-1; i++) {
             int distance = squares[i].getDistanceTo(point);
-            if (distance < minDist) {
+            if (distance <= minDist) {
                 min = i;
                 minDist = distance;
             }

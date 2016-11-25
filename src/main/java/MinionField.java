@@ -47,7 +47,7 @@ public class MinionField extends PotentialField {
         
         
         if (distance < minion.getRadius() + colSize) {
-            return -100.0;
+            return -200.0;
         } else if (distance > maxCastDist + colSize) {
             if (minion.getFaction() == self.getFaction()) {
                 return 0.0;
@@ -56,7 +56,7 @@ public class MinionField extends PotentialField {
                 if (distance > selfCastRange + colSize) {
                     return 0.0;
                 } else {
-                    double value = 100.0/(distance/maxCastDist);
+                    double value = -100.0/(distance/maxCastDist);
                     if (distance < selfCastRange + colSize && distance > selfCastRange*selfCastRangeMinKoeff - colSize) {
                         double selfCooldownFactor = selfRemainingTicks < 20 ? (double)(20-selfRemainingTicks) : 0.0;
                         value += 5.0 * selfCooldownFactor;
