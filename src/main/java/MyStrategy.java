@@ -41,11 +41,22 @@ public final class MyStrategy implements Strategy {
     
     private List<LivingUnit> allUnits;
     
+    private final List<Wizard> alliesWizards = new ArrayList<>(5);
+    private final List<Building> alliesBuildings = new ArrayList<>(6);
+    private final List<Minion> alliesMinions = new ArrayList<>(50);
+    
     private boolean isEnemiesNear;
     private FakeLaneType lane;
     
     private Point2D previousWaypoint;
     private Point2D nextWaypoint;
+    
+    private int ticksToNextBonus;
+    
+    private Point2D bonusPoint1;
+    private Point2D bonusPoint2;
+    private boolean bonus1 = false;
+    private boolean bonus2 = false;
     
     @Override
     public void move(Wizard self, World world, Game game, Move move)
@@ -53,6 +64,7 @@ public final class MyStrategy implements Strategy {
         initStrategy(self, world, game, move);
         initTick(self, world, game, move);
         debug.beginPost();
+        debug.text(self.getX(), self.getY()+self.getRadius()+5.0, "Next bonus: "+ticksToNextBonus, Color.BLACK);
 //        move.setAction(ActionType.MAGIC_MISSILE);
 ////        Wizard fake = new Wizard(123, self.getX(), self.getY(), self.getSpeedX(), self.getSpeedY(), self.getAngle(), enemyFaction, self.getRadius(), self.getLife(), self.getMaxLife(), self.getStatuses(), self.getOwnerPlayerId(), false, self.getMana(), self.getMaxMana(), self.getVisionRange(), self.getCastRange(), self.getXp(), self.getLevel(), self.getSkills(), 0, new int[]{0,0,0,0,0,0}, false, self.getMessages());
 ////        Minion fake = new Minion(123, self.getX(), self.getY(), self.getSpeedX(), self.getSpeedY(), self.getAngle(), enemyFaction, game.getMinionRadius(), game.getMinionLife(), game.getMinionLife(), self.getStatuses(), MinionType.ORC_WOODCUTTER, game.getMinionVisionRange(), game.getOrcWoodcutterDamage(), game.getOrcWoodcutterActionCooldownTicks(), 0);
@@ -88,6 +100,15 @@ public final class MyStrategy implements Strategy {
                 debug.line(self.getX(), self.getY(), back.x, back.y, Color.MAGENTA);
                 targetPoint = new Point((int)back.x/POTENTIAL_GRID_COL_SIZE,(int)back.y/POTENTIAL_GRID_COL_SIZE);
                 if (isCrossing(back)) {
+                    List<Point> path = pathFinder.getPath(selfPoint, targetPoint);
+                    if (null != path && path.size() > 0) {
+                        targetPoint = path.get(0);
+                    }
+                }
+            } else if (isCurrentLaneToBonus()) {
+                Point2D nextPoint = nextWaypoint;
+                targetPoint = new Point((int)nextPoint.x/POTENTIAL_GRID_COL_SIZE, (int)nextPoint.y/POTENTIAL_GRID_COL_SIZE);
+                if (isCrossing(nextPoint)) {
                     List<Point> path = pathFinder.getPath(selfPoint, targetPoint);
                     if (null != path && path.size() > 0) {
                         targetPoint = path.get(0);
@@ -398,6 +419,9 @@ public final class MyStrategy implements Strategy {
         if (random == null) {
             random = new Random(game.getRandomSeed());
             
+            bonusPoint1 = new Point2D(game.getMapSize()*0.3, game.getMapSize()*0.3);
+            bonusPoint2 = new Point2D(game.getMapSize()*0.7, game.getMapSize()*0.7);
+            
             POTENTIAL_GRID_SIZE = (int)game.getMapSize()/POTENTIAL_GRID_COL_SIZE;
             potentialGrid = new double[POTENTIAL_GRID_SIZE][POTENTIAL_GRID_SIZE];
             staticPotentialGrid = new double[POTENTIAL_GRID_SIZE][POTENTIAL_GRID_SIZE];
@@ -421,10 +445,7 @@ public final class MyStrategy implements Strategy {
                 }
                 value -= 10.0 - (10.0 / POTENTIAL_GRID_SIZE);
             }
-            
-//            int bonus1coords = (int)(game.getMapSize()*0.3/POTENTIAL_GRID_COL_SIZE);
-//            int bonus2coords = (int)(game.getMapSize()*0.7/POTENTIAL_GRID_COL_SIZE);
-                        
+                                    
             enemyFaction = self.getFaction() == Faction.ACADEMY ? Faction.RENEGADES : Faction.ACADEMY;
             fakeBuildings = new Building[]{
                 new Building(124214, 2070.7106781186544, 1600.0, 0, 0, 0, enemyFaction,game.getGuardianTowerRadius(),(int)StrictMath.round(game.getGuardianTowerLife()),(int)StrictMath.round(game.getGuardianTowerLife()), self.getStatuses(),BuildingType.GUARDIAN_TOWER,game.getGuardianTowerVisionRange(),game.getGuardianTowerAttackRange(),game.getGuardianTowerDamage(),0,0),
@@ -480,6 +501,13 @@ public final class MyStrategy implements Strategy {
         this.game = game;
         this.move = move;
         
+        ticksToNextBonus = world.getTickIndex() > 0 ? game.getBonusAppearanceIntervalTicks() - world.getTickIndex() % game.getBonusAppearanceIntervalTicks() : game.getBonusAppearanceIntervalTicks();
+        if (ticksToNextBonus < 500) {
+            changeLaneToBonus();
+        }
+        checkBonuses();
+        checkLane();
+        
         previousWaypoint = globalMap.getPreviousWayPoint(lane, self);
         nextWaypoint = globalMap.getNextWayPoint(lane, self);
         
@@ -490,18 +518,155 @@ public final class MyStrategy implements Strategy {
         enemyMinions = getEnemyMinions();
         enemyWizards = getEnemyWizards();
         
+        allUnits = new ArrayList<>();
+        allUnits.addAll(Arrays.asList(world.getBuildings()));
+        allUnits.addAll(Arrays.asList(world.getMinions()));
+        allUnits.addAll(Arrays.asList(world.getTrees()));
+        Arrays.asList(world.getWizards()).stream().filter((wizard) -> !wizard.isMe()).forEach(allUnits::add);
+        
+        alliesWizards.clear();
+        alliesBuildings.clear();
+        alliesMinions.clear();
+        Arrays.asList(world.getWizards()).stream().filter((wizard) -> wizard.getFaction() == self.getFaction()).forEach(alliesWizards::add);
+        Arrays.asList(world.getBuildings()).stream().filter((building) -> building.getFaction() == self.getFaction()).forEach(alliesBuildings::add);
+        Arrays.asList(world.getMinions()).stream().filter((minion) -> minion.getFaction() == self.getFaction()).forEach(alliesMinions::add);
+        
         calcTreesPotentials();
         calcLanePotentials();
         calcPotentials();
         isEnemiesNear = isEnemiesNear();
         
-        allUnits = new ArrayList<>();
-        allUnits.addAll(Arrays.asList(world.getBuildings()));
-        allUnits.addAll(Arrays.asList(world.getMinions()));
-        allUnits.addAll(Arrays.asList(world.getTrees()));
-        Arrays.asList(world.getWizards()).stream().filter((wizard) -> !wizard.isMe()).forEach((wizard) -> {
-            allUnits.add(wizard);
-        });
+        
+    }
+    
+    private boolean anyoneSee(Point2D point)
+    {
+        for (Wizard wizard : alliesWizards) {
+            if (point.getDistanceTo(wizard) <= wizard.getVisionRange()) {
+                return true;
+            }
+        }
+        for (Building building : alliesBuildings) {
+            if (point.getDistanceTo(building) <= building.getVisionRange()) {
+                return true;
+            }
+        }
+        for (Minion minion : alliesMinions) {
+            if (point.getDistanceTo(minion) <= minion.getVisionRange()) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    private void checkBonuses()
+    {
+        if (ticksToNextBonus == 0) {
+            bonus1 = true;
+            bonus2 = true;
+        }
+        boolean[] bonusExist = new boolean[]{false, false};
+        for (Bonus bonus : world.getBonuses()) {
+            if (bonus.getX() < game.getMapSize()*0.5) {
+                bonusExist[0] = true;
+            } else {
+                bonusExist[1] = true;
+            }
+        }
+        
+        if (bonus1 || bonus2) {
+            if (bonus1 && !bonusExist[0] && anyoneSee(bonusPoint1)) {
+                bonus1 = false;
+            }
+            if (bonus2 && !bonusExist[1] && anyoneSee(bonusPoint2)) {
+                bonus2 = false;
+            }
+        }
+    }
+    
+    private void checkLane()
+    {
+        if (ticksToNextBonus >= 500) {
+            if ((!bonus1 && isCurrentLaneToBonus1()) || (!bonus2 && isCurrentLaneToBonus2())) {
+                changeLaneFromBonus();
+            }
+        }
+    }
+    
+    private void changeLaneFromBonus()
+    {
+        switch (lane) {
+            case ENEMYBASE_TO_TOP_BONUS1:
+            case TOP_TO_BONUS1:
+                lane = FakeLaneType.TOP;
+                break;
+            case ENEMYBASE_TO_BOTTOM_BONUS2:
+            case BOTTOM_TO_BONUS2:
+                lane = FakeLaneType.BOTTOM;
+                break;
+            case MIDDLE_TO_BONUS1:
+            case MIDDLE_TO_BONUS2:
+            case ENEMYBASE_TO_MIDDLE_BONUS1:
+            case ENEMYBASE_TO_MIDDLE_BONUS2:
+                lane = FakeLaneType.MIDDLE;
+                break;
+        }
+    }
+        
+    private boolean isCurrentLaneToBonus1()
+    {
+        switch (lane) {
+            case ENEMYBASE_TO_TOP_BONUS1:
+            case TOP_TO_BONUS1:
+            case ENEMYBASE_TO_MIDDLE_BONUS1:
+            case MIDDLE_TO_BONUS1:
+                return true;
+        }
+        return false;
+    }
+    
+    private boolean isCurrentLaneToBonus2()
+    {
+        switch (lane) {
+            case ENEMYBASE_TO_BOTTOM_BONUS2:
+            case BOTTOM_TO_BONUS2:
+            case ENEMYBASE_TO_MIDDLE_BONUS2:
+            case MIDDLE_TO_BONUS2:
+                return true;
+        }
+        return false;
+    }
+    
+    private boolean isCurrentLaneToBonus()
+    {
+        return isCurrentLaneToBonus1() || isCurrentLaneToBonus2();
+    }
+    
+    private void changeLaneToBonus()
+    {
+        switch (lane) {
+            case TOP:
+                if (self.getX() > 500.0) {
+                    lane = FakeLaneType.ENEMYBASE_TO_TOP_BONUS1;
+                } else {
+                    lane = FakeLaneType.TOP_TO_BONUS1;
+                }
+                break;
+            case BOTTOM:
+                if (self.getY() < game.getMapSize() - 500.0) {
+                    lane = FakeLaneType.ENEMYBASE_TO_BOTTOM_BONUS2;
+                } else {
+                    lane = FakeLaneType.BOTTOM_TO_BONUS2;
+                }
+                break;
+            case MIDDLE:
+                if (bonusPoint1.getDistanceTo(self) < bonusPoint2.getDistanceTo(self)) {
+                    lane = (self.getX() > 500.0 && self.getY() < game.getMapSize() - 500.0) ? FakeLaneType.ENEMYBASE_TO_MIDDLE_BONUS1 : FakeLaneType.MIDDLE_TO_BONUS1;
+                } else {
+                    lane = (self.getX() > 500.0 && self.getY() < game.getMapSize() - 500.0) ? FakeLaneType.ENEMYBASE_TO_MIDDLE_BONUS1 : FakeLaneType.MIDDLE_TO_BONUS2;                    
+                }
+                break;
+        }
     }
     
     private void calcTreesPotentials()
