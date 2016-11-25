@@ -203,7 +203,7 @@ public class GlobalMap
         int min = -1;
         for (int i = 0; i < squares.length-1; i++) {
             int distance = squares[i].getDistanceTo(point);
-            if (distance < minDist) {
+            if (distance <= minDist) {
                 min = i;
                 minDist = distance;
             }
