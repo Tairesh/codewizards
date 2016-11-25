@@ -42,7 +42,7 @@ public class EnemyTowerField extends PotentialField {
             double selfCastRange = self.getCastRange() + building.getRadius() + MyStrategy.game.getMagicMissileRadius();
             if (distance < selfCastRange + colSize && distance > selfCastRange*selfCastRangeMinKoeff - colSize) {
                 double selfCooldownFactor = selfRemainingTicks < 20 ? (double)(20-selfRemainingTicks) : 0.0;
-                value += 7.5 * selfCooldownFactor;
+                value += 15.0 * selfCooldownFactor;
             }
             
             return value;

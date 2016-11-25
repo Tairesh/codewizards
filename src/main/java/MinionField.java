@@ -72,7 +72,7 @@ public class MinionField extends PotentialField {
                 double distFactor = distance / (maxCastDist + colSize); // 0 мы вплотную 1 мы на макс расстоянии атаки
                 double dangerAngle = angleKoeff * (maxCastSector / 2.0) / distFactor;
 
-                value = (absAngle <= dangerAngle) ? -10.0 : (absAngle-dangerAngle)*10.0;
+                value = (absAngle <= dangerAngle) ? -10.0 : (absAngle-dangerAngle)*30.0;
             } else {
                 
                 double absAngle = StrictMath.abs(minion.getAngleTo(x*MyStrategy.POTENTIAL_GRID_COL_SIZE, y*MyStrategy.POTENTIAL_GRID_COL_SIZE));

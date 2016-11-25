@@ -57,9 +57,7 @@ public class PathFinder {
         if (MyStrategy.potentialGrid[to.x][to.y] < 0) {
             to = getOtherFinishPoint(to, true);
         }
-        if (MyStrategy.potentialGrid[to.x][to.y] < 0) {
-            return null;
-        }
+        
         List<PathFinderPoint> openList = new ArrayList<>();
         boolean[][] added = new boolean[MyStrategy.POTENTIAL_GRID_SIZE][MyStrategy.POTENTIAL_GRID_SIZE];
         
@@ -69,7 +67,7 @@ public class PathFinder {
         
         openList.add(start);
         
-        while(openList.size() > 0 && openList.size() < 5000) {
+        while(openList.size() > 0 && openList.size() < 10000) {
             PathFinderPoint currentPoint = Collections.min(openList, (o1, o2) -> o1.compareTo(o2));
                         
             openList.remove(currentPoint);
