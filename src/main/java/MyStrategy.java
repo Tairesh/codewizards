@@ -139,11 +139,21 @@ public final class MyStrategy implements Strategy {
             double angle = self.getAngleTo(bestTarget);
             double distance = self.getDistanceTo(bestTarget);
             move.setTurn(angle);
-            if (distance <= self.getCastRange()+bestTarget.getRadius()+game.getMagicMissileRadius()
+            
+            if (StrictMath.max(self.getRemainingActionCooldownTicks(), self.getRemainingCooldownTicksByAction()[ActionType.MAGIC_MISSILE.ordinal()]) == 0
+                && distance <= self.getCastRange()+bestTarget.getRadius()/*+game.getMagicMissileRadius()*/
                 && StrictMath.abs(angle) < game.getStaffSector() / 2.0) {
+                
                 move.setAction(ActionType.MAGIC_MISSILE);
                 move.setCastAngle(angle);
                 move.setMinCastDistance(distance-bestTarget.getRadius()-game.getMagicMissileRadius());
+                
+            } else if (StrictMath.max(self.getRemainingActionCooldownTicks(), self.getRemainingCooldownTicksByAction()[ActionType.STAFF.ordinal()]) == 0
+                && distance <= game.getStaffRange()+bestTarget.getRadius()
+                && StrictMath.abs(angle) < game.getStaffSector() / 2.0) {
+                
+                move.setAction(ActionType.STAFF);
+                move.setCastAngle(angle);
             }
         } else {
             Point2D nextPoint = nextWaypoint;
@@ -897,7 +907,7 @@ public final class MyStrategy implements Strategy {
         vector.rotate(StrictMath.PI);
         LineSegment2D segmentRight = segment.copy().add(vector);
 
-        debug.fillCircle(point.x, point.y, POTENTIAL_GRID_SIZE/2, Color.YELLOW);
+        debug.circle(point.x, point.y, POTENTIAL_GRID_SIZE/2, Color.YELLOW);
         debug.line(segmentLeft.getX1(), segmentLeft.getY1(), segmentLeft.getX2(), segmentLeft.getY2(), Color.YELLOW);
         debug.line(segment.getX1(), segment.getY1(), segment.getX2(), segment.getY2(), Color.YELLOW);
         debug.line(segmentRight.getX1(), segmentRight.getY1(), segmentRight.getX2(), segmentRight.getY2(), Color.YELLOW);
