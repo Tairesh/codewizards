@@ -9,7 +9,8 @@ import model.*;
 
 public final class MyStrategy implements Strategy {
     
-    private final IVisualClient debug = new VisualClient();
+    private final IVisualClient debug = new EmptyVisualClient();
+    private final boolean debugEnabled = false;
     private final PathFinder pathFinder = PathFinder.getInstance();
     private final GlobalMap globalMap = GlobalMap.getInstance();
     private Random random;
@@ -63,33 +64,10 @@ public final class MyStrategy implements Strategy {
     {
         initStrategy(self, world, game, move);
         initTick(self, world, game, move);
-        debug.beginPost();
-        debug.text(self.getX(), self.getY()+self.getRadius()+5.0, "Next bonus: "+ticksToNextBonus, Color.BLACK);
-//        move.setAction(ActionType.MAGIC_MISSILE);
-////        Wizard fake = new Wizard(123, self.getX(), self.getY(), self.getSpeedX(), self.getSpeedY(), self.getAngle(), enemyFaction, self.getRadius(), self.getLife(), self.getMaxLife(), self.getStatuses(), self.getOwnerPlayerId(), false, self.getMana(), self.getMaxMana(), self.getVisionRange(), self.getCastRange(), self.getXp(), self.getLevel(), self.getSkills(), 0, new int[]{0,0,0,0,0,0}, false, self.getMessages());
-////        Minion fake = new Minion(123, self.getX(), self.getY(), self.getSpeedX(), self.getSpeedY(), self.getAngle(), enemyFaction, game.getMinionRadius(), game.getMinionLife(), game.getMinionLife(), self.getStatuses(), MinionType.ORC_WOODCUTTER, game.getMinionVisionRange(), game.getOrcWoodcutterDamage(), game.getOrcWoodcutterActionCooldownTicks(), 0);
-//        Building fake = new Building(124214, self.getX(), self.getY(), 0, 0, 0, enemyFaction,game.getGuardianTowerRadius(),(int)StrictMath.round(game.getGuardianTowerLife()),(int)StrictMath.round(game.getGuardianTowerLife()), self.getStatuses(),BuildingType.GUARDIAN_TOWER,game.getGuardianTowerVisionRange(),game.getGuardianTowerAttackRange(),game.getGuardianTowerDamage(),0,0);
-//        PotentialField field = new EnemyTowerField(fake, self);
-//        int startX = (int)(self.getX()-self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
-//        int startY = (int)(self.getY()-self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
-//        int endX = (int)(self.getX()+self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
-//        int endY = (int)(self.getY()+self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
-//        startX = (startX < 0) ? 0 : startX;
-//        startY = (startY < 0) ? 0 : startY;
-//        endX = (endX >= POTENTIAL_GRID_SIZE) ? POTENTIAL_GRID_SIZE-1 : endX;
-//        endY = (endY >= POTENTIAL_GRID_SIZE) ? POTENTIAL_GRID_SIZE-1 : endY;
-//        for (int x = startX; x <= endX; x++) {
-//            for (int y = startY; y <= endY; y++) {
-//                debug.fillRect(x*POTENTIAL_GRID_COL_SIZE, y*POTENTIAL_GRID_COL_SIZE, (x+1)*POTENTIAL_GRID_COL_SIZE, (y+1)*POTENTIAL_GRID_COL_SIZE, debugColor(field.getValue(x, y)));
-//                debug.rect(x*POTENTIAL_GRID_COL_SIZE, y*POTENTIAL_GRID_COL_SIZE, (x+1)*POTENTIAL_GRID_COL_SIZE, (y+1)*POTENTIAL_GRID_COL_SIZE, Color.BLACK);
-//                debug.text(x*POTENTIAL_GRID_COL_SIZE+5, (y+1)*POTENTIAL_GRID_COL_SIZE-5, ""+(int)field.getValue(x, y), Color.BLACK);
-//            }
-//        }
-//        
-//        if (true) {
-//            debug.endPost();
-//            return;
-//        }
+        if (debugEnabled) {
+            debug.beginPost();
+            debug.text(self.getX(), self.getY()+self.getRadius()+5.0, "Next bonus: "+ticksToNextBonus, Color.BLACK);
+        }
         
         Point selfPoint = new Point((int) self.getX()/POTENTIAL_GRID_COL_SIZE, (int) self.getY()/POTENTIAL_GRID_COL_SIZE);
                 
@@ -124,9 +102,11 @@ public final class MyStrategy implements Strategy {
                 double y = targetPoint.y * POTENTIAL_GRID_COL_SIZE;
                 debug.line(self.getX(), self.getY(), x, y, Color.CYAN);
                 debug.fillCircle(x, y, POTENTIAL_GRID_COL_SIZE/2, Color.CYAN);
-                Vector2D vector = new Vector2D(4.0, self.getAngleTo(x, y));
-                move.setSpeed(vector.getX());
-                move.setStrafeSpeed(vector.getY());
+                if (self.getDistanceTo(x, y) > 4.0) {
+                    Vector2D vector = new Vector2D(4.0, self.getAngleTo(x, y));
+                    move.setSpeed(vector.getX());
+                    move.setStrafeSpeed(vector.getY());
+                }
             }
             
             LivingUnit bestTarget = getBestTarget();
@@ -164,27 +144,31 @@ public final class MyStrategy implements Strategy {
                     nextPoint = new Point2D(next.x*POTENTIAL_GRID_COL_SIZE,next.y*POTENTIAL_GRID_COL_SIZE);
                 }
             }
-            move.setTurn(self.getAngleTo(nextPoint.x, nextPoint.y));
-            move.setSpeed(10.0);
-        }
-        debug.endPost();
-        debug.beginPre();
-        int startX = (int)(self.getX()-self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
-        int startY = (int)(self.getY()-self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
-        int endX = (int)(self.getX()+self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
-        int endY = (int)(self.getY()+self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
-        startX = (startX < 0) ? 0 : startX;
-        startY = (startY < 0) ? 0 : startY;
-        endX = (endX >= POTENTIAL_GRID_SIZE) ? POTENTIAL_GRID_SIZE-1 : endX;
-        endY = (endY >= POTENTIAL_GRID_SIZE) ? POTENTIAL_GRID_SIZE-1 : endY;
-        for (int x = startX; x <= endX; x++) {
-            for (int y = startY; y <= endY; y++) {
-                debug.fillRect(x*POTENTIAL_GRID_COL_SIZE, y*POTENTIAL_GRID_COL_SIZE, (x+1)*POTENTIAL_GRID_COL_SIZE, (y+1)*POTENTIAL_GRID_COL_SIZE, debugColor(potentialGrid[x][y]));
-                debug.rect(x*POTENTIAL_GRID_COL_SIZE, y*POTENTIAL_GRID_COL_SIZE, (x+1)*POTENTIAL_GRID_COL_SIZE, (y+1)*POTENTIAL_GRID_COL_SIZE, Color.BLACK);
-                debug.text(x*POTENTIAL_GRID_COL_SIZE+5, (y+1)*POTENTIAL_GRID_COL_SIZE-5, ""+(int)potentialGrid[x][y], Color.BLACK);
+            if (self.getDistanceTo(nextPoint.x, nextPoint.y) > 4.0) {
+                move.setTurn(self.getAngleTo(nextPoint.x, nextPoint.y));
+                move.setSpeed(10.0);
             }
         }
-        debug.endPre();
+        if (debugEnabled) {
+            debug.endPost();
+            debug.beginPre();
+            int startX = (int)(self.getX()-self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
+            int startY = (int)(self.getY()-self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
+            int endX = (int)(self.getX()+self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
+            int endY = (int)(self.getY()+self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
+            startX = (startX < 0) ? 0 : startX;
+            startY = (startY < 0) ? 0 : startY;
+            endX = (endX >= POTENTIAL_GRID_SIZE) ? POTENTIAL_GRID_SIZE-1 : endX;
+            endY = (endY >= POTENTIAL_GRID_SIZE) ? POTENTIAL_GRID_SIZE-1 : endY;
+            for (int x = startX; x <= endX; x++) {
+                for (int y = startY; y <= endY; y++) {
+                    debug.fillRect(x*POTENTIAL_GRID_COL_SIZE, y*POTENTIAL_GRID_COL_SIZE, (x+1)*POTENTIAL_GRID_COL_SIZE, (y+1)*POTENTIAL_GRID_COL_SIZE, debugColor(potentialGrid[x][y]));
+                    debug.rect(x*POTENTIAL_GRID_COL_SIZE, y*POTENTIAL_GRID_COL_SIZE, (x+1)*POTENTIAL_GRID_COL_SIZE, (y+1)*POTENTIAL_GRID_COL_SIZE, Color.BLACK);
+                    debug.text(x*POTENTIAL_GRID_COL_SIZE+5, (y+1)*POTENTIAL_GRID_COL_SIZE-5, ""+(int)potentialGrid[x][y], Color.BLACK);
+                }
+            }
+            debug.endPre();
+        }
         
     }
     
@@ -520,6 +504,11 @@ public final class MyStrategy implements Strategy {
         
         previousWaypoint = globalMap.getPreviousWayPoint(lane, self);
         nextWaypoint = globalMap.getNextWayPoint(lane, self);
+        if (isCurrentLaneToBonus()) {
+            if ((nextWaypoint.equals(bonusPoint1) && !bonus1) || (nextWaypoint.equals(bonusPoint2)) && !bonus2) {
+                nextWaypoint.add(new Vector2D(-1.0*(game.getBonusRadius()+self.getRadius()+4.0), self.getAngleTo(nextWaypoint.x, nextWaypoint.y)));
+            }
+        }
         
         checkMinionsInAgre();
         checkEnemyWizards();
