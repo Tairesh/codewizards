@@ -6,6 +6,7 @@ import java.util.List;
 public class PathFinder {
     
     private static PathFinder instance;
+    public static boolean[][] blocked;
     
     private PathFinder()
     {
@@ -49,15 +50,15 @@ public class PathFinder {
         List<PathFinderPoint> neigbors = point.getNeighbours();
         PathFinderPoint max = Collections.max(neigbors, (o1, o2) -> MyStrategy.potentialGrid[o1.x][o1.y] < MyStrategy.potentialGrid[o2.x][o2.y] ? -1 : 1);
         Point maxPoint = new Point(max.x, max.y);
-        return (MyStrategy.potentialGrid[max.x][max.y] < 0 && recursive) ? getOtherFinishPoint(maxPoint, false) : maxPoint;
+        return (blocked[max.x][max.y] && recursive) ? getOtherFinishPoint(maxPoint, false) : maxPoint;
     }
     
     public List<Point> getPath(Point from, Point to)
     {
-        if (MyStrategy.potentialGrid[to.x][to.y] < 0) {
+        if (blocked[to.x][to.y]) {
             to = getOtherFinishPoint(to, true);
         }
-        if (MyStrategy.potentialGrid[to.x][to.y] < 0) {
+        if (blocked[to.x][to.y]) {
             return null;
         }
         List<PathFinderPoint> openList = new ArrayList<>();
@@ -89,7 +90,7 @@ public class PathFinder {
             List<PathFinderPoint> neigbors = currentPoint.getNeighbours();
             
             for (PathFinderPoint newPoint : neigbors) {
-                if (added[newPoint.x][newPoint.y]) {
+                if (added[newPoint.x][newPoint.y] || blocked[newPoint.x][newPoint.y]) {
                     continue;
                 }
                 newPoint.previous = currentPoint;                                                
