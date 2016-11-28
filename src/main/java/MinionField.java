@@ -47,7 +47,7 @@ public class MinionField extends PotentialField {
         
         
         if (distance < minion.getRadius() + colSize) {
-            return -100.0;
+            return -200.0;
         } else if (distance > maxCastDist + colSize) {
             if (minion.getFaction() == self.getFaction()) {
                 return 0.0;
@@ -56,7 +56,7 @@ public class MinionField extends PotentialField {
                 if (distance > selfCastRange + colSize) {
                     return 0.0;
                 } else {
-                    double value = 100.0/(distance/maxCastDist);
+                    double value = -100.0/(distance/maxCastDist);
                     if (distance < selfCastRange + colSize && distance > selfCastRange*selfCastRangeMinKoeff - colSize) {
                         double selfCooldownFactor = selfRemainingTicks < 20 ? (double)(20-selfRemainingTicks) : 0.0;
                         value += 5.0 * selfCooldownFactor;
@@ -72,7 +72,7 @@ public class MinionField extends PotentialField {
                 double distFactor = distance / (maxCastDist + colSize); // 0 мы вплотную 1 мы на макс расстоянии атаки
                 double dangerAngle = angleKoeff * (maxCastSector / 2.0) / distFactor;
 
-                value = (absAngle <= dangerAngle) ? -10.0 : (absAngle-dangerAngle)*10.0;
+                value = (absAngle <= dangerAngle) ? -10.0 : (absAngle-dangerAngle)*30.0;
             } else {
                 
                 double absAngle = StrictMath.abs(minion.getAngleTo(x*MyStrategy.POTENTIAL_GRID_COL_SIZE, y*MyStrategy.POTENTIAL_GRID_COL_SIZE));

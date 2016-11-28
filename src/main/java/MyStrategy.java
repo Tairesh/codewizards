@@ -46,7 +46,7 @@ public final class MyStrategy implements Strategy {
     private List<Minion> enemyMinions; // вместе с нейтралами в агре
     private List<Wizard> enemyWizards; // вместе с фейковыми
     
-    private List<LivingUnit> allUnits;
+    private final List<LivingUnit> allUnits = new ArrayList<>(300);
     
     private final List<Wizard> alliesWizards = new ArrayList<>(5);
     private final List<Building> alliesBuildings = new ArrayList<>(6);
@@ -143,7 +143,7 @@ public final class MyStrategy implements Strategy {
                 double y = targetPoint.y * POTENTIAL_GRID_COL_SIZE;
                 debug.line(self.getX(), self.getY(), x, y, Color.CYAN);
                 debug.fillCircle(x, y, POTENTIAL_GRID_COL_SIZE/2, Color.CYAN);
-                if (self.getDistanceTo(x, y) > self.getRadius()+game.getBonusRadius()+4.0) {
+                if (self.getDistanceTo(x, y) > self.getRadius()+game.getBonusRadius()+4.0 || !isCurrentLaneToBonus()) {
                     Vector2D vector = new Vector2D(10.0, self.getAngleTo(x, y));
                     move.setSpeed(vector.getX());
                     move.setStrafeSpeed(vector.getY());
@@ -228,6 +228,11 @@ public final class MyStrategy implements Strategy {
             } 
         } else {
             Point2D nextPoint = nextWaypoint;
+            if (nextPoint.getDistanceTo(self) > 500.0) {
+                Vector2D vect = new Vector2D(500, MyMath.normalizeAngle(self.getAngle() + self.getAngleTo(nextPoint.x, nextPoint.y)));
+                nextPoint = new Point2D(self);
+                nextPoint.add(vect);
+            }
             if (isCrossing(nextPoint)) {
                 List<Point> path = pathFinder.getPath(selfPoint, new Point((int)nextPoint.x/POTENTIAL_GRID_COL_SIZE, (int)nextPoint.y/POTENTIAL_GRID_COL_SIZE));
                 if (null != path && path.size() > 0) {
@@ -502,47 +507,7 @@ public final class MyStrategy implements Strategy {
     {
         return getBestPoints(10);
     }
-    
-//    private Point getBestPotentialPoint()
-//    {
-//        
-//        Point point = getMaxPotentialPoint(Double.MAX_VALUE);
-//        for (int i = 100; i > 0; i--) {
-//            if (!isCrossing(new Point2D(point.x*POTENTIAL_GRID_COL_SIZE, point.y*POTENTIAL_GRID_COL_SIZE))) {
-//                return point;
-//            }
-//            point = getMaxPotentialPoint(potentialGrid[point.x][point.y]);
-//        }
-//        return null;
-//    }
-//        
-//    private Point getMaxPotentialPoint(double topBorder)
-//    {
-//        double max = -Double.MAX_VALUE;
-//        int maxX = 0;
-//        int maxY = 0;
-//        
-//        int startX = (int)(self.getX()-self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
-//        int startY = (int)(self.getY()-self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
-//        int endX = (int)(self.getX()+self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
-//        int endY = (int)(self.getY()+self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
-//        startX = (startX < 0) ? 0 : startX;
-//        startY = (startY < 0) ? 0 : startY;
-//        endX = (endX >= POTENTIAL_GRID_SIZE) ? POTENTIAL_GRID_SIZE-1 : endX;
-//        endY = (endY >= POTENTIAL_GRID_SIZE) ? POTENTIAL_GRID_SIZE-1 : endY;
-//        for (int x = startX; x <= endX; x++) {
-//            for (int y = startY; y <= endY; y++) {
-//                if (potentialGrid[x][y] > max && potentialGrid[x][y] < topBorder) {
-//                    max = potentialGrid[x][y];
-//                    maxX = x;
-//                    maxY = y;
-//                }
-//            }
-//        }
-//        
-//        return new Point(maxX, maxY);
-//    }
-    
+        
     private Color debugColor(double value)
     {
         int val = (int)StrictMath.round(value);
@@ -596,10 +561,19 @@ public final class MyStrategy implements Strategy {
                         staticPotentialGrid[x][y] = -30.0*(20-(POTENTIAL_GRID_SIZE-x)+(POTENTIAL_GRID_SIZE-y));
                     } else {
                         staticPotentialGrid[x][y] = value;
-                    }
+                    } 
                     value += 10.0 / POTENTIAL_GRID_SIZE;
                 }
                 value -= 10.0 - (10.0 / POTENTIAL_GRID_SIZE);
+            }
+            for (Building building : world.getBuildings()) {
+                Point point = new Point((int)building.getX()/POTENTIAL_GRID_COL_SIZE,(int)building.getY()/POTENTIAL_GRID_COL_SIZE);
+                int r = ((int)building.getRadius()/POTENTIAL_GRID_COL_SIZE)+1;
+                for (int x = StrictMath.max(point.x-r, 0);x<StrictMath.min(point.x+r,POTENTIAL_GRID_SIZE);x++) {
+                    for (int y = StrictMath.max(point.y-r, 0);y<StrictMath.min(point.y+r,POTENTIAL_GRID_SIZE);y++) {
+                        staticPotentialGrid[x][y] = -400.0;
+                    }
+                }
             }
                                     
             enemyFaction = self.getFaction() == Faction.ACADEMY ? Faction.RENEGADES : Faction.ACADEMY;
@@ -625,8 +599,7 @@ public final class MyStrategy implements Strategy {
                 new Wizard(3, 3700, 300, 0, 0, 0, enemyFaction, game.getWizardRadius(), game.getWizardBaseLife(), game.getWizardBaseLife(), new Status[]{}, 12345, false, game.getWizardBaseMana(), game.getWizardBaseMana(), game.getWizardVisionRange(), game.getWizardCastRange(), 0, 1, new SkillType[]{}, 0, new int[]{0,0,0,0,0}, false, new Message[]{}),
                 new Wizard(4, 3700, 300, 0, 0, 0, enemyFaction, game.getWizardRadius(), game.getWizardBaseLife(), game.getWizardBaseLife(), new Status[]{}, 12345, false, game.getWizardBaseMana(), game.getWizardBaseMana(), game.getWizardVisionRange(), game.getWizardCastRange(), 0, 1, new SkillType[]{}, 0, new int[]{0,0,0,0,0}, false, new Message[]{}),
                 new Wizard(5, 3700, 300, 0, 0, 0, enemyFaction, game.getWizardRadius(), game.getWizardBaseLife(), game.getWizardBaseLife(), new Status[]{}, 12345, false, game.getWizardBaseMana(), game.getWizardBaseMana(), game.getWizardVisionRange(), game.getWizardCastRange(), 0, 1, new SkillType[]{}, 0, new int[]{0,0,0,0,0}, false, new Message[]{}),
-            };
-            
+            };            
             
             switch ((int) self.getId()) {
                 case 1:
@@ -658,7 +631,7 @@ public final class MyStrategy implements Strategy {
         move = _move;
                 
         ticksToNextBonus = game.getBonusAppearanceIntervalTicks() - (world.getTickIndex() % game.getBonusAppearanceIntervalTicks()) - 1;
-        if (ticksToNextBonus < StrictMath.min(bonusPoint1.getDistanceTo(self), bonusPoint2.getDistanceTo(self))/3.5) {
+        if (ticksToNextBonus < StrictMath.min(bonusPoint1.getDistanceTo(self), bonusPoint2.getDistanceTo(self))/3.0 || bonus1 || bonus2) {
             changeLaneToBonus();
         }
         checkBonuses();
@@ -676,7 +649,7 @@ public final class MyStrategy implements Strategy {
         enemyMinions = getEnemyMinions();
         enemyWizards = getEnemyWizards();
         
-        allUnits = new ArrayList<>();
+        allUnits.clear();
         allUnits.addAll(Arrays.asList(world.getBuildings()));
         allUnits.addAll(Arrays.asList(world.getMinions()));
         allUnits.addAll(Arrays.asList(world.getTrees()));
@@ -767,6 +740,11 @@ public final class MyStrategy implements Strategy {
             }
         }
         return false;
+    }
+    
+    private boolean anyoneSee(Unit unit)
+    {
+        return anyoneSee(new Point2D(unit));
     }
     
     private void checkBonuses()

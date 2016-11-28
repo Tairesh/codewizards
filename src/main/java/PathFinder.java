@@ -70,7 +70,7 @@ public class PathFinder {
         
         openList.add(start);
         
-        while(openList.size() > 0 && openList.size() < 5000) {
+        while(openList.size() > 0 && openList.size() < 10000) {
             PathFinderPoint currentPoint = Collections.min(openList, (o1, o2) -> o1.compareTo(o2));
                         
             openList.remove(currentPoint);
