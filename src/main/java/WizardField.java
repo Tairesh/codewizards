@@ -4,7 +4,7 @@ import model.Wizard;
 public class WizardField extends PotentialField {
 
     private final double angleKoeff = 0.75;
-    private final double selfCastRangeMinKoeff = 0.85;
+    private final double selfCastRangeMinKoeff = 0.65;
     
     private final Wizard wizard;
     private final Wizard self;
@@ -39,7 +39,7 @@ public class WizardField extends PotentialField {
                 if (distance > maxCastDist*2 + colSize) {
                     return 0.0;
                 } else {
-                    return 150.0/(distance/maxCastDist);
+                    return 50.0/(distance/maxCastDist);
                 }
             }
         } else {
@@ -62,7 +62,7 @@ public class WizardField extends PotentialField {
                 value *= cooldownFactor;
 
                 double selfCastRange = self.getCastRange() + wizard.getRadius() + MyStrategy.game.getMagicMissileRadius();
-                if (distance < selfCastRange + colSize && distance > selfCastRange*selfCastRangeMinKoeff - colSize) {
+                if (distance < selfCastRange && distance > selfCastRange*selfCastRangeMinKoeff - colSize) {
                     double selfCooldownFactor = selfRemainingTicks < 20 ? (double)(20-selfRemainingTicks) : 0.0;
                     value += 50.0/(distance/selfCastRange) * selfCooldownFactor;
                 }

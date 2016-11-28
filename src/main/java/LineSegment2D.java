@@ -101,6 +101,10 @@ public class LineSegment2D {
      * @param length the length to set
      */
     public void setLength(double length) {
+        Vector2D vect = new Vector2D(x1, y1, x2, y2);
+        vect.setLength(length);
+        x2 = x1+vect.getX();
+        y2 = y1+vect.getY();
         this.length = length;
     }
     

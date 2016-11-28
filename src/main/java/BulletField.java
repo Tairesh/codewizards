@@ -1,5 +1,6 @@
 
 import model.Projectile;
+import model.Tree;
 import model.Wizard;
 
 
@@ -19,8 +20,18 @@ public class BulletField extends PotentialField {
         if (speed.getLength() < 0.1) {
             speed = new Vector2D(10.0, MyMath.normalizeAngle(bullet.getAngle()+bullet.getAngleTo(self)));
         }
-        speed.setLength(getMaxDistance());
+        double distance = getMaxDistance();
+        speed.setLength(distance);
         lineSegment = new LineSegment2D(bullet.getX(),bullet.getY(),bullet.getX()+speed.getX(),bullet.getY()+speed.getY());
+        for (Tree tree : MyStrategy.world.getTrees()) {
+            double treeDist = tree.getDistanceTo(bullet);
+            if (treeDist < distance) {
+                if (lineSegment.isCrossingCircle(tree)) {
+                    lineSegment.setLength(treeDist);
+                    distance = treeDist;
+                }
+            }
+        }
         line = new Line2D(bullet.getX(),bullet.getY(),bullet.getX()+speed.getX(),bullet.getY()+speed.getY());
     }
     
@@ -50,9 +61,9 @@ public class BulletField extends PotentialField {
             double distToPoint2 = lineSegment.getPoint2().getDistanceTo(x*MyStrategy.POTENTIAL_GRID_COL_SIZE, y*MyStrategy.POTENTIAL_GRID_COL_SIZE);
             double minDist = StrictMath.min(distToLine, StrictMath.min(distToPoint1, distToPoint2));
             if (minDist <= self.getRadius()+MyStrategy.POTENTIAL_GRID_COL_SIZE) {
-                return -200.0;
+                return -500.0;
             } else {
-                return -200.0 / (minDist - self.getRadius() - MyStrategy.POTENTIAL_GRID_COL_SIZE) ;
+                return -300.0 / (minDist - self.getRadius() - MyStrategy.POTENTIAL_GRID_COL_SIZE) ;
             }
         }
     }
