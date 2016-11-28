@@ -510,7 +510,7 @@ public final class MyStrategy implements Strategy {
         
     private Color debugColor(double value)
     {
-        int val = (int)StrictMath.round(value);
+        int val = (int)StrictMath.round(value/2.0);
         if (val == 0) {
             return Color.WHITE;
         }
@@ -659,7 +659,7 @@ public final class MyStrategy implements Strategy {
         allUnits.forEach((unit) -> {
             int x = (int)StrictMath.round(unit.getX()/(double)POTENTIAL_GRID_COL_SIZE);
             int y = (int)StrictMath.round(unit.getY()/(double)POTENTIAL_GRID_COL_SIZE);
-            int r = (int)(unit.getRadius()+self.getRadius())/POTENTIAL_GRID_COL_SIZE+1;
+            int r = (int)(unit.getRadius()+self.getRadius())/POTENTIAL_GRID_COL_SIZE;
             for (int i = StrictMath.max(x-r,0); i <= StrictMath.min(x+r,POTENTIAL_GRID_SIZE-1); i++) {
                 for (int j = StrictMath.max(y-r,0); j <= StrictMath.min(y+r,POTENTIAL_GRID_SIZE-1); j++) {
                     if (StrictMath.hypot(i-x, j-y) <= r) {
