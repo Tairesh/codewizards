@@ -37,15 +37,23 @@ public class BulletField extends PotentialField {
     
     private double getMaxDistance()
     {
+        double distance = 0.0;
+        if (MyStrategy.bulletsCache.containsKey(bullet.getId())) {
+            distance = MyStrategy.bulletsCache.get(bullet.getId());
+        }
+                
+        double maxDistance = 0.0;
         switch(bullet.getType()) {
             case MAGIC_MISSILE:
             case FROST_BOLT:
             case FIREBALL:
-                return 600.0;
+                maxDistance = 600.0;
+                break;
             case DART:
-                return MyStrategy.game.getFetishBlowdartAttackRange();
+                maxDistance = MyStrategy.game.getFetishBlowdartAttackRange();
+                break;
         }
-        return 0.0;
+        return maxDistance - distance;
     }
     
     @Override

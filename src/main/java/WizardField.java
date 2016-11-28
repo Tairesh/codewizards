@@ -4,7 +4,7 @@ import model.Wizard;
 public class WizardField extends PotentialField {
 
     private final double angleKoeff = 0.75;
-    private final double selfCastRangeMinKoeff = 0.65;
+    private final double selfCastRangeMinKoeff = 0.8;
     
     private final Wizard wizard;
     private final Wizard self;
@@ -39,7 +39,7 @@ public class WizardField extends PotentialField {
                 if (distance > maxCastDist*2 + colSize) {
                     return 0.0;
                 } else {
-                    return 50.0/(distance/maxCastDist);
+                    return 100.0/(distance/maxCastDist);
                 }
             }
         } else {
