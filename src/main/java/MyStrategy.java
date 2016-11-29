@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import javafx.util.Pair;
 import model.*;
 
 public final class MyStrategy implements Strategy {
@@ -65,6 +66,8 @@ public final class MyStrategy implements Strategy {
     private boolean bonus1 = false;
     private boolean bonus2 = false;
     
+    private Point selfPoint;
+    
     @Override
     public void move(Wizard self, World world, Game game, Move move)
     {
@@ -72,17 +75,65 @@ public final class MyStrategy implements Strategy {
         initTick(self, world, game, move);
 
         debug.beginPost();
-        debug.text(self.getX(), self.getY()+self.getRadius()+5.0, "Next bonus: "+ticksToNextBonus, Color.BLACK);
-        debug.text(self.getX(), self.getY()+self.getRadius()+20.0, "Lane: "+lane.name(), Color.BLACK);
-        debug.text(self.getX(), self.getY()+self.getRadius()+35.0, "Bonuses: "+bonus1+" "+bonus2, Color.BLACK);
-        debug.text(self.getX(), self.getY()+self.getRadius()+50.0, "Level: "+self.getLevel(), Color.BLACK);
-        debug.text(self.getX(), self.getY()+self.getRadius()+65.0, "Skille: "+self.getSkills().length, Color.BLACK);
+        if (debugEnabled) {
+            debug.fillRect(self.getX()-1.0, self.getY()+self.getRadius(), self.getX()+150.0, self.getY()+self.getRadius()+66.0, Color.WHITE);
+            debug.text(self.getX(), self.getY()+self.getRadius()+5.0, "Next bonus: "+ticksToNextBonus, Color.BLACK);
+            debug.text(self.getX(), self.getY()+self.getRadius()+20.0, "Lane: "+lane.name(), Color.BLACK);
+            debug.text(self.getX(), self.getY()+self.getRadius()+35.0, "Bonuses: "+bonus1+" "+bonus2, Color.BLACK);
+            debug.text(self.getX(), self.getY()+self.getRadius()+50.0, "Level: "+self.getLevel(), Color.BLACK);
+            debug.text(self.getX(), self.getY()+self.getRadius()+65.0, "Skille: "+self.getSkills().length, Color.BLACK);
+        }
+              
+        walk();
+        shoot();
         
-        Point selfPoint = new Point((int) self.getX()/POTENTIAL_GRID_COL_SIZE, (int) self.getY()/POTENTIAL_GRID_COL_SIZE);
-                
+        debug.endPost();
+        if (debugEnabled) {
+            debug.beginPre();
+            
+            int startX = (int)(self.getX()-self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
+            int startY = (int)(self.getY()-self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
+            int endX = (int)(self.getX()+self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
+            int endY = (int)(self.getY()+self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
+            startX = (startX < 0) ? 0 : startX;
+            startY = (startY < 0) ? 0 : startY;
+            endX = (endX >= POTENTIAL_GRID_SIZE) ? POTENTIAL_GRID_SIZE-1 : endX;
+            endY = (endY >= POTENTIAL_GRID_SIZE) ? POTENTIAL_GRID_SIZE-1 : endY;
+            for (int x = startX; x <= endX; x++) {
+                for (int y = startY; y <= endY; y++) {
+                    if (PathFinder.blocked[x][y]) {
+                        debug.fillCircle(x*POTENTIAL_GRID_COL_SIZE, y*POTENTIAL_GRID_COL_SIZE, POTENTIAL_GRID_COL_SIZE/2, Color.DARK_GRAY);
+                    } else {
+                        debug.fillCircle(x*POTENTIAL_GRID_COL_SIZE, y*POTENTIAL_GRID_COL_SIZE, POTENTIAL_GRID_COL_SIZE/2, debugColor(potentialGrid[x][y]));
+                    }
+//                    debug.rect(x*POTENTIAL_GRID_COL_SIZE, y*POTENTIAL_GRID_COL_SIZE, (x+1)*POTENTIAL_GRID_COL_SIZE, (y+1)*POTENTIAL_GRID_COL_SIZE, Color.BLACK);
+                    debug.text(x*POTENTIAL_GRID_COL_SIZE-5, y*POTENTIAL_GRID_COL_SIZE+5, ""+(int)potentialGrid[x][y], Color.BLACK);
+                }
+            }
+            for (Wizard wizard : enemyWizards) {
+                debug.circle(wizard.getX(), wizard.getY(), wizard.getRadius()-1.0, Color.PINK);
+            }
+            for (Minion minion : enemyMinions) {
+                debug.circle(minion.getX(), minion.getY(), minion.getRadius()-1.0, Color.PINK);
+            }
+            for (Building building : enemyBuildings) {
+                debug.circle(building.getX(), building.getY(), building.getRadius()-1.0, Color.PINK);
+            }
+            debug.endPre();
+        }
+        
+    }
+    
+    private void shoot()
+    {
         if (isEnemiesNear) {
-            LivingUnit bestTarget = getBestTarget();
-            if (null == bestTarget) {
+            LivingUnit bestTarget;
+            Pair<LivingUnit,Integer> pair = getBestTarget();
+            int bestTargetScore = 0;
+            if (null == pair) {
+                bestTarget = pair.getKey();
+                bestTargetScore = pair.getValue();
+            } else {
                 bestTarget = getNearestEnemy();
             }
             if (null == bestTarget) {
@@ -94,62 +145,7 @@ public final class MyStrategy implements Strategy {
             bestTargetPoint.y += bestTarget.getSpeedY()*5.0;
             double angle = self.getAngleTo(bestTargetPoint.x,bestTargetPoint.y);
             double distance = self.getDistanceTo(bestTargetPoint.x,bestTargetPoint.y);
-            
-            Point targetPoint;
-            if (self.getLife() < 0.35*self.getMaxLife() || (self.getLife() < 0.75*self.getMaxLife() && potentialGrid[selfPoint.x][selfPoint.y] < 0)) {
-                Point2D back = previousWaypoint;
-                debug.line(self.getX(), self.getY(), back.x, back.y, Color.MAGENTA);
-                targetPoint = new Point((int)back.x/POTENTIAL_GRID_COL_SIZE,(int)back.y/POTENTIAL_GRID_COL_SIZE);
-                if (isCrossing(back)) {
-                    List<Point> path = pathFinder.getPath(selfPoint, targetPoint);
-                    if (null != path && path.size() > 0) {
-                        targetPoint = path.get(0);
-                        if (debugEnabled) {
-                            Point tmp = path.get(0);
-                            for (Point point : path) {
-                                debug.line(tmp.x*POTENTIAL_GRID_COL_SIZE, tmp.y*POTENTIAL_GRID_COL_SIZE, point.x*POTENTIAL_GRID_COL_SIZE, point.y*POTENTIAL_GRID_COL_SIZE, Color.MAGENTA);
-                                tmp = point;
-                            }
-                        }
-                    }
-                }
-            } else if (isCurrentLaneToBonus()) {
-                Point2D nextPoint = nextWaypoint;
-                targetPoint = new Point((int)nextPoint.x/POTENTIAL_GRID_COL_SIZE, (int)nextPoint.y/POTENTIAL_GRID_COL_SIZE);
-                if (isCrossing(nextPoint)) {
-                    List<Point> path = pathFinder.getPath(selfPoint, targetPoint);
-                    if (null != path && path.size() > 0) {
-                        targetPoint = path.get(0);
-                        if (debugEnabled) {
-                            Point tmp = path.get(0);
-                            for (Point point : path) {
-                                debug.line(tmp.x*POTENTIAL_GRID_COL_SIZE, tmp.y*POTENTIAL_GRID_COL_SIZE, point.x*POTENTIAL_GRID_COL_SIZE, point.y*POTENTIAL_GRID_COL_SIZE, Color.GREEN);
-                                tmp = point;
-                            }
-                        }
-                    }
-                }
-            } else if (potentialGrid[selfPoint.x][selfPoint.y] < PSEUDO_SAFE_POTENTIAL) {
-                targetPoint = getNearestPseudoSafePoint();
-            } else if (distance > self.getCastRange()) { // идти к врагу если он далеко
-                targetPoint = new Point((int)bestTargetPoint.x/POTENTIAL_GRID_COL_SIZE,(int)bestTargetPoint.y/POTENTIAL_GRID_COL_SIZE);
-            } else {
-                targetPoint = getBestPoint();
-            }
-            if (null == targetPoint) {
-                move.setSpeed(-10.0);
-            } else {
-                double x = targetPoint.x * POTENTIAL_GRID_COL_SIZE;
-                double y = targetPoint.y * POTENTIAL_GRID_COL_SIZE;
-                debug.line(self.getX(), self.getY(), x, y, Color.CYAN);
-                debug.fillCircle(x, y, POTENTIAL_GRID_COL_SIZE/2, Color.CYAN);
-                if (self.getDistanceTo(x, y) > self.getRadius()+game.getBonusRadius()+4.0 || !isCurrentLaneToBonus()) {
-                    Vector2D vector = new Vector2D(10.0, self.getAngleTo(x, y));
-                    move.setSpeed(vector.getX());
-                    move.setStrafeSpeed(vector.getY());
-                }
-            }
-            
+                        
             move.setTurn(angle);
             move.setCastAngle(angle);
             
@@ -213,7 +209,9 @@ public final class MyStrategy implements Strategy {
             } else if (canThrowFrostbolt
                     && inCastRange
                     && inAngle
-                    && !isTargetFrozen) {
+                    && !isTargetFrozen
+//                    && bestTargetScore >= 100
+                    && bestTarget.getClass() == Wizard.class) {
                 move.setAction(ActionType.FROST_BOLT);
                 move.setMinCastDistance(distance-bestTarget.getRadius()-game.getFrostBoltRadius());
             } else if (canThrowMissile
@@ -226,73 +224,109 @@ public final class MyStrategy implements Strategy {
                     && inAngle) {
                 move.setAction(ActionType.STAFF);
             } 
-        } else {
-            Point2D nextPoint = nextWaypoint;
-            if (nextPoint.getDistanceTo(self) > 500.0) {
-                Vector2D vect = new Vector2D(500, MyMath.normalizeAngle(self.getAngle() + self.getAngleTo(nextPoint.x, nextPoint.y)));
-                nextPoint = new Point2D(self);
-                nextPoint.add(vect);
+        } 
+    }
+    
+    private void walk()
+    {
+        Point2D targetPoint2D;
+        if (isEnemiesNear) {
+            LivingUnit bestTarget;
+            Pair<LivingUnit,Integer> pair = getBestTarget();
+            if (null == pair) {
+                bestTarget = pair.getKey();
+            } else {
+                bestTarget = getNearestEnemy();
             }
-            if (isCrossing(nextPoint)) {
-                List<Point> path = pathFinder.getPath(selfPoint, new Point((int)nextPoint.x/POTENTIAL_GRID_COL_SIZE, (int)nextPoint.y/POTENTIAL_GRID_COL_SIZE));
-                if (null != path && path.size() > 0) {
-                    Point next = path.get(0);
-                    nextPoint = new Point2D(next.x*POTENTIAL_GRID_COL_SIZE,next.y*POTENTIAL_GRID_COL_SIZE);
-                    if (debugEnabled) {
-                        Point tmp = path.get(0);
-                        for (Point point : path) {
-                            debug.line(tmp.x*POTENTIAL_GRID_COL_SIZE, tmp.y*POTENTIAL_GRID_COL_SIZE, point.x*POTENTIAL_GRID_COL_SIZE, point.y*POTENTIAL_GRID_COL_SIZE, Color.BLUE);
-                            tmp = point;
-                        }
-                    }
-                }
+            if (null == bestTarget) {
+                bestTarget = fakeBuildings[6];
             }
-            boolean needStayAroundBonus = ((isCurrentLaneToBonus1() && !bonus1) || (isCurrentLaneToBonus2() && !bonus2));
-            boolean weAreAroundNextPoint = self.getDistanceTo(nextPoint.x, nextPoint.y) < self.getRadius()+game.getBonusRadius()+5.0;
-            if (!needStayAroundBonus || !weAreAroundNextPoint) {
-                double angle = self.getAngleTo(nextPoint.x, nextPoint.y);
-                Vector2D vector = new Vector2D(10.0, angle);
-                move.setSpeed(vector.getX());
-                move.setStrafeSpeed(vector.getY());
-                move.setTurn(angle);
-            }
-        }
-        
-        debug.endPost();
-        if (debugEnabled) {
-            debug.beginPre();
             
-            int startX = (int)(self.getX()-self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
-            int startY = (int)(self.getY()-self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
-            int endX = (int)(self.getX()+self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
-            int endY = (int)(self.getY()+self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
-            startX = (startX < 0) ? 0 : startX;
-            startY = (startY < 0) ? 0 : startY;
-            endX = (endX >= POTENTIAL_GRID_SIZE) ? POTENTIAL_GRID_SIZE-1 : endX;
-            endY = (endY >= POTENTIAL_GRID_SIZE) ? POTENTIAL_GRID_SIZE-1 : endY;
-            for (int x = startX; x <= endX; x++) {
-                for (int y = startY; y <= endY; y++) {
-                    if (PathFinder.blocked[x][y]) {
-                        debug.fillCircle(x*POTENTIAL_GRID_COL_SIZE, y*POTENTIAL_GRID_COL_SIZE, POTENTIAL_GRID_COL_SIZE/2, Color.DARK_GRAY);
-                    } else {
-                        debug.fillCircle(x*POTENTIAL_GRID_COL_SIZE, y*POTENTIAL_GRID_COL_SIZE, POTENTIAL_GRID_COL_SIZE/2, debugColor(potentialGrid[x][y]));
-                    }
-//                    debug.rect(x*POTENTIAL_GRID_COL_SIZE, y*POTENTIAL_GRID_COL_SIZE, (x+1)*POTENTIAL_GRID_COL_SIZE, (y+1)*POTENTIAL_GRID_COL_SIZE, Color.BLACK);
-                    debug.text(x*POTENTIAL_GRID_COL_SIZE-5, y*POTENTIAL_GRID_COL_SIZE+5, ""+(int)potentialGrid[x][y], Color.BLACK);
+            double distance = self.getDistanceTo(bestTarget);
+            
+            if (self.getLife() < 0.35*self.getMaxLife() || (self.getLife() < 0.75*self.getMaxLife() && potentialGrid[selfPoint.x][selfPoint.y] < 0)) {
+                
+                debug.line(self.getX(), self.getY(), previousWaypoint.x, previousWaypoint.y, Color.MAGENTA);
+                targetPoint2D = getPathPointToTarget(previousWaypoint);
+                
+            } else if (potentialGrid[selfPoint.x][selfPoint.y] < PSEUDO_SAFE_POTENTIAL) {
+                Point safe = getNearestPseudoSafePoint();
+                if (safe != null) {
+                    targetPoint2D = getPathPointToTarget(safe);
+                } else {
+                    targetPoint2D = new Point2D(self);
+                    targetPoint2D.add(new Vector2D(-10.0, self.getAngle()));
+                }
+            } else if (isCurrentLaneToBonus()) {
+                targetPoint2D = getPathPointToTarget(nextWaypoint);
+            } else if (distance > self.getCastRange()) { // идти к врагу если он далеко
+                targetPoint2D = getPathPointToTarget(new Point2D(bestTarget));
+            } else {
+                Point best = getBestPoint();
+                if (best != null) {
+                    targetPoint2D = getPathPointToTarget(best);
+                } else {
+                    targetPoint2D = new Point2D(self);
+                    targetPoint2D.add(new Vector2D(10.0, self.getAngle()));
                 }
             }
-            for (Wizard wizard : enemyWizards) {
-                debug.circle(wizard.getX(), wizard.getY(), wizard.getRadius()-1.0, Color.PINK);
-            }
-            for (Minion minion : enemyMinions) {
-                debug.circle(minion.getX(), minion.getY(), minion.getRadius()-1.0, Color.PINK);
-            }
-            for (Building building : enemyBuildings) {
-                debug.circle(building.getX(), building.getY(), building.getRadius()-1.0, Color.PINK);
-            }
-            debug.endPre();
+        } else {
+            targetPoint2D = getPathPointToTarget(getPseudoNextPoint());
         }
-        
+        boolean needStayAroundBonus = ((isCurrentLaneToBonus1() && !bonus1) || (isCurrentLaneToBonus2() && !bonus2));
+        boolean weAreAroundNextPoint = self.getDistanceTo(targetPoint2D.x, targetPoint2D.y) < self.getRadius()+game.getBonusRadius()+5.0;
+        if (!needStayAroundBonus || !weAreAroundNextPoint) {
+            debug.line(self.getX(), self.getY(), targetPoint2D.x, targetPoint2D.y, Color.CYAN);
+            debug.circle(targetPoint2D.x, targetPoint2D.y, self.getRadius(), Color.CYAN);
+            double angle = self.getAngleTo(targetPoint2D.x, targetPoint2D.y);
+            Vector2D vector = new Vector2D(10.0, angle);
+            move.setSpeed(vector.getX());
+            move.setStrafeSpeed(vector.getY());
+            move.setTurn(angle);
+        }
+    }
+    
+    private Point2D getPseudoNextPoint()
+    {
+        if (nextWaypoint.getDistanceTo(self) > 500.0) {
+            Point2D pseudoNextWaypoint = new Point2D(self);
+            pseudoNextWaypoint.add(new Vector2D(500, MyMath.normalizeAngle(self.getAngle() + self.getAngleTo(nextWaypoint.x, nextWaypoint.y))));
+            return pseudoNextWaypoint;
+        }
+        return nextWaypoint;
+    }
+    
+    private Point2D convertPointTo2D(Point point)
+    {
+        return new Point2D(point.x*POTENTIAL_GRID_COL_SIZE, point.y*POTENTIAL_GRID_COL_SIZE);
+    }
+    
+    private Point convert2DToPoint(Point2D point)
+    {
+        return new Point((int)StrictMath.round(point.x/(double)POTENTIAL_GRID_COL_SIZE),(int)StrictMath.round(point.y/(double)POTENTIAL_GRID_COL_SIZE));
+    }
+    
+    private Point2D getPathPointToTarget(Point2D targetPoint2D)
+    {
+        if (isCrossing(targetPoint2D)) {
+            List<Point> path = pathFinder.getPath(selfPoint, convert2DToPoint(targetPoint2D));
+            if (null != path && path.size() > 0) {
+                if (debugEnabled) {
+                    Point tmp = path.get(0);
+                    for (Point point : path) {
+                        debug.line(tmp.x*POTENTIAL_GRID_COL_SIZE, tmp.y*POTENTIAL_GRID_COL_SIZE, point.x*POTENTIAL_GRID_COL_SIZE, point.y*POTENTIAL_GRID_COL_SIZE, Color.GREEN);
+                        tmp = point;
+                    }
+                }
+                return convertPointTo2D(path.get(0));
+            }
+        }
+        return targetPoint2D;
+    }
+    
+    private Point2D getPathPointToTarget(Point targetPoint)
+    {
+        return getPathPointToTarget(convertPointTo2D(targetPoint));
     }
     
     private boolean isEnemiesNear()
@@ -332,8 +366,9 @@ public final class MyStrategy implements Strategy {
         return nearestUnit;
     }
     
-    private LivingUnit getBestTarget()
+    private Pair<LivingUnit,Integer> getBestTarget()
     {
+        
         int maxScore = -1;
         LivingUnit bestTarget = null;
         
@@ -387,7 +422,10 @@ public final class MyStrategy implements Strategy {
             }
         }
         
-        return bestTarget;
+        if (bestTarget == null) {
+            return null;
+        }
+        return new Pair<>(bestTarget, maxScore);
     }
     
     private double getPointValueWithNeighbours(Point point)
@@ -423,7 +461,6 @@ public final class MyStrategy implements Strategy {
     
     private Point getNearestPseudoSafePoint()
     {
-        Point selfPoint = new Point((int)self.getX()/POTENTIAL_GRID_COL_SIZE,(int)self.getY()/POTENTIAL_GRID_COL_SIZE);
         double minDist = Double.POSITIVE_INFINITY;
         int[] coords = {-1,-1};
         
@@ -566,15 +603,15 @@ public final class MyStrategy implements Strategy {
                 }
                 value -= 10.0 - (10.0 / POTENTIAL_GRID_SIZE);
             }
-            for (Building building : world.getBuildings()) {
-                Point point = new Point((int)building.getX()/POTENTIAL_GRID_COL_SIZE,(int)building.getY()/POTENTIAL_GRID_COL_SIZE);
-                int r = ((int)building.getRadius()/POTENTIAL_GRID_COL_SIZE)+1;
-                for (int x = StrictMath.max(point.x-r, 0);x<StrictMath.min(point.x+r,POTENTIAL_GRID_SIZE);x++) {
-                    for (int y = StrictMath.max(point.y-r, 0);y<StrictMath.min(point.y+r,POTENTIAL_GRID_SIZE);y++) {
-                        staticPotentialGrid[x][y] = -400.0;
-                    }
-                }
-            }
+//            for (Building building : world.getBuildings()) {
+//                Point point = new Point((int)building.getX()/POTENTIAL_GRID_COL_SIZE,(int)building.getY()/POTENTIAL_GRID_COL_SIZE);
+//                int r = ((int)building.getRadius()/POTENTIAL_GRID_COL_SIZE)+1;
+//                for (int x = StrictMath.max(point.x-r, 0);x<StrictMath.min(point.x+r,POTENTIAL_GRID_SIZE);x++) {
+//                    for (int y = StrictMath.max(point.y-r, 0);y<StrictMath.min(point.y+r,POTENTIAL_GRID_SIZE);y++) {
+//                        staticPotentialGrid[x][y] = -400.0;
+//                    }
+//                }
+//            }
                                     
             enemyFaction = self.getFaction() == Faction.ACADEMY ? Faction.RENEGADES : Faction.ACADEMY;
             fakeBuildings = new Building[]{
@@ -629,9 +666,11 @@ public final class MyStrategy implements Strategy {
         world = _world;
         game = _game;
         move = _move;
+        
+        selfPoint = new Point((int)StrictMath.round(self.getX()/(double)POTENTIAL_GRID_COL_SIZE), (int)StrictMath.round(self.getY()/(double)POTENTIAL_GRID_COL_SIZE));
                 
         ticksToNextBonus = game.getBonusAppearanceIntervalTicks() - (world.getTickIndex() % game.getBonusAppearanceIntervalTicks()) - 1;
-        if (ticksToNextBonus < StrictMath.min(bonusPoint1.getDistanceTo(self), bonusPoint2.getDistanceTo(self))/3.0 || bonus1 || bonus2) {
+        if (ticksToNextBonus < StrictMath.min(bonusPoint1.getDistanceTo(self), bonusPoint2.getDistanceTo(self))/4.0 || bonus1 || bonus2) {
             changeLaneToBonus();
         }
         checkBonuses();
@@ -654,12 +693,30 @@ public final class MyStrategy implements Strategy {
         allUnits.addAll(Arrays.asList(world.getMinions()));
         allUnits.addAll(Arrays.asList(world.getTrees()));
         Arrays.asList(world.getWizards()).stream().filter((wizard) -> !wizard.isMe()).forEach(allUnits::add);
+                
+        alliesWizards.clear();
+        Arrays.asList(world.getWizards()).stream().filter((wizard) -> wizard.getFaction() == self.getFaction()).forEach(alliesWizards::add);
+        alliesBuildings.clear();
+        Arrays.asList(world.getBuildings()).stream().filter((building) -> building.getFaction() == self.getFaction()).forEach(alliesBuildings::add);
+        alliesMinions.clear();
+        Arrays.asList(world.getMinions()).stream().filter((minion) -> minion.getFaction() == self.getFaction()).forEach(alliesMinions::add);
         
+        updateBlockedTiles();
+        calcTreesPotentials();
+        calcLanePotentials();
+        calcPotentials();
+        isEnemiesNear = isEnemiesNear();
+        
+        learnSkills();
+    }
+    
+    private void updateBlockedTiles()
+    {
         PathFinder.blocked = new boolean[POTENTIAL_GRID_SIZE][POTENTIAL_GRID_SIZE];
         allUnits.forEach((unit) -> {
             int x = (int)StrictMath.round(unit.getX()/(double)POTENTIAL_GRID_COL_SIZE);
             int y = (int)StrictMath.round(unit.getY()/(double)POTENTIAL_GRID_COL_SIZE);
-            int r = (int)(unit.getRadius()+self.getRadius())/POTENTIAL_GRID_COL_SIZE;
+            int r = (int)((unit.getRadius()+self.getRadius())/POTENTIAL_GRID_COL_SIZE)+1;
             for (int i = StrictMath.max(x-r,0); i <= StrictMath.min(x+r,POTENTIAL_GRID_SIZE-1); i++) {
                 for (int j = StrictMath.max(y-r,0); j <= StrictMath.min(y+r,POTENTIAL_GRID_SIZE-1); j++) {
                     if (StrictMath.hypot(i-x, j-y) <= r) {
@@ -668,20 +725,6 @@ public final class MyStrategy implements Strategy {
                 }                
             }
         });
-        
-        alliesWizards.clear();
-        alliesBuildings.clear();
-        alliesMinions.clear();
-        Arrays.asList(world.getWizards()).stream().filter((wizard) -> wizard.getFaction() == self.getFaction()).forEach(alliesWizards::add);
-        Arrays.asList(world.getBuildings()).stream().filter((building) -> building.getFaction() == self.getFaction()).forEach(alliesBuildings::add);
-        Arrays.asList(world.getMinions()).stream().filter((minion) -> minion.getFaction() == self.getFaction()).forEach(alliesMinions::add);
-        
-        calcTreesPotentials();
-        calcLanePotentials();
-        calcPotentials();
-        isEnemiesNear = isEnemiesNear();
-        
-        learnSkills();
     }
     
     private void checkBulletsCache()
@@ -778,7 +821,7 @@ public final class MyStrategy implements Strategy {
     
     private void checkLane()
     {
-        if (ticksToNextBonus >= 500 && ticksToNextBonus < game.getBonusAppearanceIntervalTicks()-2) {
+        if (isCurrentLaneToBonus() && ticksToNextBonus >= 500 && ticksToNextBonus < game.getBonusAppearanceIntervalTicks()-2) {
             if ((!bonus1 && isCurrentLaneToBonus1()) || (!bonus2 && isCurrentLaneToBonus2())) {
                 changeLaneFromBonus();
             }
