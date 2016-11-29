@@ -12,8 +12,8 @@ import model.*;
 
 public final class MyStrategy implements Strategy {
     
-    private final IVisualClient debug = new VisualClient();
-    private final boolean debugEnabled = true;
+    private final IVisualClient debug = new EmptyVisualClient();
+    private final boolean debugEnabled = false;
     private final PathFinder pathFinder = PathFinder.getInstance();
     private final GlobalMap globalMap = GlobalMap.getInstance();
     private Random random;
@@ -130,7 +130,7 @@ public final class MyStrategy implements Strategy {
             LivingUnit bestTarget;
             Pair<LivingUnit,Integer> pair = getBestTarget();
             int bestTargetScore = 0;
-            if (null == pair) {
+            if (null != pair) {
                 bestTarget = pair.getKey();
                 bestTargetScore = pair.getValue();
             } else {
@@ -233,7 +233,7 @@ public final class MyStrategy implements Strategy {
         if (isEnemiesNear) {
             LivingUnit bestTarget;
             Pair<LivingUnit,Integer> pair = getBestTarget();
-            if (null == pair) {
+            if (null != pair) {
                 bestTarget = pair.getKey();
             } else {
                 bestTarget = getNearestEnemy();
