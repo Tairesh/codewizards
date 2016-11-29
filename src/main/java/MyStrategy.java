@@ -71,6 +71,7 @@ public final class MyStrategy implements Strategy {
     @Override
     public void move(Wizard self, World world, Game game, Move move)
     {
+        getBestLane();
         initStrategy(self, world, game, move);
         initTick(self, world, game, move);
 
@@ -668,6 +669,7 @@ public final class MyStrategy implements Strategy {
         
         selfPoint = new Point((int)StrictMath.round(self.getX()/(double)POTENTIAL_GRID_COL_SIZE), (int)StrictMath.round(self.getY()/(double)POTENTIAL_GRID_COL_SIZE));
                 
+        changeLaneToBest();
         ticksToNextBonus = game.getBonusAppearanceIntervalTicks() - (world.getTickIndex() % game.getBonusAppearanceIntervalTicks()) - 1;
         if (ticksToNextBonus < StrictMath.min(bonusPoint1.getDistanceTo(self), bonusPoint2.getDistanceTo(self))/4.0 || bonus1 || bonus2) {
             changeLaneToBonus();
@@ -707,6 +709,13 @@ public final class MyStrategy implements Strategy {
         isEnemiesNear = isEnemiesNear();
         
         learnSkills();
+    }
+    
+    private void changeLaneToBest()
+    {
+        if (world.getTickIndex() % 50 == 0 && self.getDistanceTo(400, 3600) < 500.0) {
+            lane = getBestLane();
+        }
     }
     
     private void updateBlockedTiles()
@@ -855,20 +864,76 @@ public final class MyStrategy implements Strategy {
         switch (lane) {
             case ENEMYBASE_TO_TOP_BONUS1:
             case TOP_TO_BONUS1:
-                lane = FakeLaneType.BONUS1_TO_TOP;
-                break;
-            case ENEMYBASE_TO_BOTTOM_BONUS2:
-            case BOTTOM_TO_BONUS2:
-                lane = FakeLaneType.BONUS2_TO_BOTTOM;
-                break;
             case MIDDLE_TO_BONUS1:
             case ENEMYBASE_TO_MIDDLE_BONUS1:
-                lane = FakeLaneType.BONUS1_TO_MIDDLE;
+                if (getBestLane() == FakeLaneType.TOP) {
+                    lane = FakeLaneType.BONUS1_TO_TOP;
+                } else {
+                    lane = FakeLaneType.BONUS1_TO_MIDDLE;
+                }
                 break;
+            case ENEMYBASE_TO_BOTTOM_BONUS2:
+            case BOTTOM_TO_BONUS2:                
             case MIDDLE_TO_BONUS2:
             case ENEMYBASE_TO_MIDDLE_BONUS2:
-                lane = FakeLaneType.BONUS2_TO_MIDDLE;
+                if (getBestLane() == FakeLaneType.BOTTOM) {
+                    lane = FakeLaneType.BONUS2_TO_BOTTOM;
+                } else {
+                    lane = FakeLaneType.BONUS2_TO_MIDDLE;
+                }
                 break;
+        }
+    }
+    
+    private FakeLaneType getBestLane()
+    {
+        int[] buildingsCount = {0,0,0};
+        alliesBuildings.forEach((building) -> {
+            if (building.getY() > 3500) {
+                buildingsCount[2]++;
+            } else if (building.getX() < 500) {
+                buildingsCount[0]++;
+            } else {
+                buildingsCount[1]++;
+            }
+        });
+        if (buildingsCount[1] == 0) {
+            return FakeLaneType.MIDDLE;
+        }
+        if (buildingsCount[0] == 0) {
+            return FakeLaneType.TOP;
+        }
+        if (buildingsCount[2] == 0) {
+            return FakeLaneType.BOTTOM;
+        }
+        
+        int[] wizardsCount = {0,0,0};
+        alliesWizards.forEach((wizard) -> {
+            if (Math.abs(wizard.getX()+wizard.getY() - world.getWidth()) <= world.getWidth()*0.1) {
+                wizardsCount[1]++;
+            } else if (wizard.getX() < 0.2*world.getWidth() || wizard.getY() < 0.2*world.getHeight()) {
+                wizardsCount[0]++;
+            } else if (wizard.getX() > 0.8*world.getWidth() || wizard.getY() > 0.8*world.getHeight()) {
+                wizardsCount[2]++;
+            }
+        });
+        if (wizardsCount[1] == 0) {
+            return FakeLaneType.MIDDLE;
+        }
+        if (wizardsCount[0] == 0) {
+            return FakeLaneType.TOP;
+        }
+        if (wizardsCount[2] == 0) {
+            return FakeLaneType.BOTTOM;
+        }
+        
+        int[] sumCount = {wizardsCount[0]+buildingsCount[0],wizardsCount[1]+buildingsCount[1],wizardsCount[2]+buildingsCount[2]};
+        if (sumCount[0] < sumCount[1] && sumCount[0] < sumCount[2]) {
+            return FakeLaneType.TOP;
+        } else if (sumCount[2] < sumCount[1] && sumCount[2] < sumCount[0]) {
+            return FakeLaneType.TOP;
+        } else {
+            return FakeLaneType.MIDDLE;
         }
     }
         
