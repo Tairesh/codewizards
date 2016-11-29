@@ -71,7 +71,6 @@ public final class MyStrategy implements Strategy {
     @Override
     public void move(Wizard self, World world, Game game, Move move)
     {
-        getBestLane();
         initStrategy(self, world, game, move);
         initTick(self, world, game, move);
 
