@@ -61,5 +61,10 @@ public class Point2D {
     {
         return StrictMath.abs(x-point.x) < 0.1 && StrictMath.abs(y-point.y) < 0.1;
     }
+    
+    public static Point2D pointBetween(Unit unit1, Unit unit2)
+    {
+        return new Point2D((unit1.getX()+unit2.getX())/2.0, (unit1.getY()+unit2.getY())/2.0);
+    }
 
 }

@@ -47,7 +47,8 @@ public final class MyStrategy implements Strategy {
     private List<Minion> enemyMinions; // вместе с нейтралами в агре
     private List<Wizard> enemyWizards; // вместе с фейковыми
     
-    private final List<LivingUnit> allUnits = new ArrayList<>(300);
+    public static final List<LivingUnit> allUnits = new ArrayList<>(500);
+    private final List<LivingUnit> allUnitsWithoutTrees = new ArrayList<>(200);
     
     private final List<Wizard> alliesWizards = new ArrayList<>(5);
     private final List<Building> alliesBuildings = new ArrayList<>(6);
@@ -67,6 +68,7 @@ public final class MyStrategy implements Strategy {
     private boolean bonus2 = false;
     
     private Point selfPoint;
+    private Pair<LivingUnit,Integer> bestTargetPair;
     
     @Override
     public void move(Wizard self, World world, Game game, Move move)
@@ -76,7 +78,7 @@ public final class MyStrategy implements Strategy {
 
         if (debugEnabled) {
             debug.beginPost();
-            debug.fillRect(self.getX()-1.0, self.getY()+self.getRadius(), self.getX()+150.0, self.getY()+self.getRadius()+66.0, Color.WHITE);
+            debug.fillRect(self.getX()-1.0, self.getY()+self.getRadius()-1.0, self.getX()+200.0, self.getY()+self.getRadius()+66.0, Color.WHITE);
             debug.text(self.getX(), self.getY()+self.getRadius()+5.0, "Next bonus: "+ticksToNextBonus, Color.BLACK);
             debug.text(self.getX(), self.getY()+self.getRadius()+20.0, "Lane: "+lane.name(), Color.BLACK);
             debug.text(self.getX(), self.getY()+self.getRadius()+35.0, "Bonuses: "+bonus1+" "+bonus2, Color.BLACK);
@@ -109,6 +111,7 @@ public final class MyStrategy implements Strategy {
                     debug.text(x*POTENTIAL_GRID_COL_SIZE-10.0, y*POTENTIAL_GRID_COL_SIZE+5, ""+(int)potentialGrid[x][y], Color.BLACK);
                 }
             }
+            debug.fillCircle(selfPoint.x*POTENTIAL_GRID_COL_SIZE, selfPoint.y*POTENTIAL_GRID_COL_SIZE, POTENTIAL_GRID_COL_SIZE/2, Color.LIGHT_GRAY);
             enemyWizards.forEach((wizard) -> {
                 debug.circle(wizard.getX(), wizard.getY(), wizard.getRadius()-1.0, Color.PINK);
             });
@@ -125,26 +128,39 @@ public final class MyStrategy implements Strategy {
     
     private void shoot()
     {
+        LivingUnit bestTarget = null;
         if (isEnemiesNear) {
-            LivingUnit bestTarget;
-            Pair<LivingUnit,Integer> pair = getBestTarget();
             int bestTargetScore = 0;
-            if (null != pair) {
-                bestTarget = pair.getKey();
-                bestTargetScore = pair.getValue();
+            if (null != bestTargetPair) {
+                bestTarget = bestTargetPair.getKey();
+                bestTargetScore = bestTargetPair.getValue();
             } else {
                 bestTarget = getNearestEnemy();
             }
             if (null == bestTarget) {
                 bestTarget = fakeBuildings[6];
             }
-            
+        } else {
+            Tree nearestTree = null;
+            double minDist = Double.MAX_VALUE;
+            for (Tree tree : world.getTrees()) {
+                double distance = self.getDistanceTo(tree);
+                if (distance < minDist && distance < self.getRadius() + tree.getRadius() + 10.0) {
+                    nearestTree = tree;
+                    minDist = distance;
+                }
+            }
+            if (null != nearestTree) {
+                bestTarget = nearestTree;
+            }
+        }
+        
+        if (null != bestTarget) {
             Point2D bestTargetPoint = new Point2D(bestTarget);
             bestTargetPoint.x += bestTarget.getSpeedX()*5.0;
             bestTargetPoint.y += bestTarget.getSpeedY()*5.0;
             double angle = self.getAngleTo(bestTargetPoint.x,bestTargetPoint.y);
             double distance = self.getDistanceTo(bestTargetPoint.x,bestTargetPoint.y);
-                        
             move.setTurn(angle);
             move.setCastAngle(angle);
             
@@ -202,7 +218,9 @@ public final class MyStrategy implements Strategy {
             } else if (canThrowHaste && !isMeHastened) {
                 move.setAction(ActionType.HASTE);
                 move.setStatusTargetId(self.getId());
-            } else if (canThrowFireball && distance > self.getRadius()+bestTarget.getRadius()+game.getFireballExplosionMinDamageRange()) {
+            } else if (canThrowFireball 
+                    && distance > self.getRadius()+bestTarget.getRadius()+game.getFireballExplosionMinDamageRange()
+                    && bestTarget.getClass() != Tree.class) {
                 move.setAction(ActionType.FIREBALL);
                 move.setMinCastDistance(distance-bestTarget.getRadius()-game.getFireballRadius());
             } else if (canThrowFrostbolt
@@ -222,8 +240,8 @@ public final class MyStrategy implements Strategy {
                     && distance <= game.getStaffRange()
                     && inAngle) {
                 move.setAction(ActionType.STAFF);
-            } 
-        } 
+            }
+        }
     }
     
     private void walk()
@@ -231,9 +249,8 @@ public final class MyStrategy implements Strategy {
         Point2D targetPoint2D;
         if (isEnemiesNear) {
             LivingUnit bestTarget;
-            Pair<LivingUnit,Integer> pair = getBestTarget();
-            if (null != pair) {
-                bestTarget = pair.getKey();
+            if (null != bestTargetPair) {
+                bestTarget = bestTargetPair.getKey();
             } else {
                 bestTarget = getNearestEnemy();
             }
@@ -242,13 +259,8 @@ public final class MyStrategy implements Strategy {
             }
             
             double distance = self.getDistanceTo(bestTarget);
-            
-            if (self.getLife() < 0.35*self.getMaxLife() || (self.getLife() < 0.75*self.getMaxLife() && potentialGrid[selfPoint.x][selfPoint.y] < 0)) {
-                
-                debug.line(self.getX(), self.getY(), previousWaypoint.x, previousWaypoint.y, Color.MAGENTA);
-                targetPoint2D = getPathPointToTarget(previousWaypoint);
-                
-            } else if (potentialGrid[selfPoint.x][selfPoint.y] < PSEUDO_SAFE_POTENTIAL) {
+            double selfPotential = potentialGrid[selfPoint.x][selfPoint.y];
+            if (selfPotential < PSEUDO_SAFE_POTENTIAL) {
                 Point safe = getNearestPseudoSafePoint();
                 if (safe != null) {
                     targetPoint2D = getPathPointToTarget(safe);
@@ -256,10 +268,13 @@ public final class MyStrategy implements Strategy {
                     targetPoint2D = new Point2D(self);
                     targetPoint2D.add(new Vector2D(-10.0, self.getAngle()));
                 }
+            } else if (self.getLife() < 0.35*self.getMaxLife() || (self.getLife() < 0.85*self.getMaxLife() && potentialGrid[selfPoint.x][selfPoint.y] < 0)) {
+                debug.line(self.getX(), self.getY(), previousWaypoint.x, previousWaypoint.y, Color.MAGENTA);
+                targetPoint2D = getPathPointToTarget(previousWaypoint);
             } else if (isCurrentLaneToBonus()) {
                 targetPoint2D = getPathPointToTarget(nextWaypoint);
             } else if (distance > self.getCastRange()) { // идти к врагу если он далеко
-                targetPoint2D = getPathPointToTarget(new Point2D(bestTarget));
+                targetPoint2D = getPathPointToTarget(Point2D.pointBetween(self, bestTarget));
             } else {
                 Point best = getBestPoint();
                 if (best != null) {
@@ -290,6 +305,10 @@ public final class MyStrategy implements Strategy {
         if (nextWaypoint.getDistanceTo(self) > 500.0) {
             Point2D pseudoNextWaypoint = new Point2D(self);
             pseudoNextWaypoint.add(new Vector2D(500, MyMath.normalizeAngle(self.getAngle() + self.getAngleTo(nextWaypoint.x, nextWaypoint.y))));
+            Point pnwp = convert2DToPoint(pseudoNextWaypoint);
+            if (PathFinder.blocked[pnwp.x][pnwp.y]) {
+                return nextWaypoint;
+            }
             return pseudoNextWaypoint;
         }
         return nextWaypoint;
@@ -330,13 +349,13 @@ public final class MyStrategy implements Strategy {
     
     private boolean isEnemiesNear()
     {
-        if (enemyBuildings.stream().anyMatch((building) -> (self.getDistanceTo(building) < building.getAttackRange()+self.getRadius()))) {
+        if (enemyBuildings.stream().anyMatch((building) -> (self.getDistanceTo(building) <= building.getAttackRange()+self.getRadius()))) {
             return true;
         }
-        if (enemyMinions.stream().anyMatch((minion) -> (self.getDistanceTo(minion) < self.getVisionRange()))) {
+        if (enemyMinions.stream().anyMatch((minion) -> (self.getDistanceTo(minion) <= StrictMath.max(self.getCastRange(), self.getVisionRange())))) {
             return true;
         }        
-        if (enemyWizards.stream().anyMatch((wizard) -> (self.getDistanceTo(wizard) < self.getVisionRange()))) {
+        if (enemyWizards.stream().anyMatch((wizard) -> (self.getDistanceTo(wizard) <= StrictMath.max(self.getCastRange(), wizard.getCastRange())))) {
             return true;
         }
         return false;
@@ -379,7 +398,7 @@ public final class MyStrategy implements Strategy {
         enemies.addAll(enemyBuildings);
         
         for (LivingUnit unit : enemies) {
-            if (self.getDistanceTo(unit) > self.getVisionRange()) {
+            if (self.getDistanceTo(unit) > 600.0) {
                 continue;
             }
             
@@ -399,7 +418,7 @@ public final class MyStrategy implements Strategy {
                 score += 10;
             }
             
-            if (unit.getDistanceTo(self)+self.getRadius() < game.getOrcWoodcutterAttackRange()*3.0 && unit.getAngleTo(self) < StrictMath.PI/3.0) {
+            if (unit.getDistanceTo(self)+self.getRadius() < game.getOrcWoodcutterAttackRange()*3.0 && unit.getAngleTo(self) <= game.getOrcWoodcutterAttackSector()/2.0) {
                 score += 100;
             }
             
@@ -412,6 +431,12 @@ public final class MyStrategy implements Strategy {
 
             if (isCrossingTree(unit)) {
                 score -= 100;
+            }
+            
+            for (Status status : unit.getStatuses()) {
+                if (status.getType() == StatusType.FROZEN) {
+                    score += 100;
+                }
             }
             
             debug.text(unit.getX(), unit.getY()+unit.getRadius()+5.0, ""+score, Color.CYAN);
@@ -473,7 +498,7 @@ public final class MyStrategy implements Strategy {
         endY = (endY >= POTENTIAL_GRID_SIZE) ? POTENTIAL_GRID_SIZE-1 : endY;
         for (int x = startX; x <= endX; x++) {
             for (int y = startY; y <= endY; y++) {
-                if (potentialGrid[x][y] > PSEUDO_SAFE_POTENTIAL) {
+                if (!PathFinder.blocked[x][y] && potentialGrid[x][y] > PSEUDO_SAFE_POTENTIAL) {
                     double dist = selfPoint.getDistanceTo(x, y);
                     if (dist < minDist) {
                         minDist = dist;
@@ -670,8 +695,13 @@ public final class MyStrategy implements Strategy {
                 
         changeLaneToBest();
         ticksToNextBonus = game.getBonusAppearanceIntervalTicks() - (world.getTickIndex() % game.getBonusAppearanceIntervalTicks()) - 1;
-        if (ticksToNextBonus < StrictMath.min(bonusPoint1.getDistanceTo(self), bonusPoint2.getDistanceTo(self))/3.5 || bonus1 || bonus2) {
-            changeLaneToBonus();
+        if (ticksToNextBonus < 500) {
+            double bonusTimeFactor = 1.0/3.5;
+            if (ticksToNextBonus < bonusPoint1.getDistanceTo(self)/bonusTimeFactor || bonus1) {
+                changeLaneToBonus1();
+            } else if (ticksToNextBonus < bonusPoint2.getDistanceTo(self)/bonusTimeFactor || bonus2) {
+                changeLaneToBonus2();
+            }
         }
         checkBonuses();
         checkLane();
@@ -689,13 +719,17 @@ public final class MyStrategy implements Strategy {
         enemyWizards = getEnemyWizards();
         
         allUnits.clear();
+        allUnitsWithoutTrees.clear();
         allUnits.addAll(Arrays.asList(world.getBuildings()));
+        allUnitsWithoutTrees.addAll(Arrays.asList(world.getBuildings()));
         allUnits.addAll(Arrays.asList(world.getMinions()));
+        allUnitsWithoutTrees.addAll(Arrays.asList(world.getMinions()));
         allUnits.addAll(Arrays.asList(world.getTrees()));
         Arrays.asList(world.getWizards()).stream().filter((wizard) -> !wizard.isMe()).forEach(allUnits::add);
+        Arrays.asList(world.getWizards()).stream().filter((wizard) -> !wizard.isMe()).forEach(allUnitsWithoutTrees::add);
                 
         alliesWizards.clear();
-        Arrays.asList(world.getWizards()).stream().filter((wizard) -> wizard.getFaction() == self.getFaction()).forEach(alliesWizards::add);
+        Arrays.asList(world.getWizards()).stream().filter((wizard) -> !wizard.isMe() && wizard.getFaction() == self.getFaction()).forEach(alliesWizards::add);
         alliesBuildings.clear();
         Arrays.asList(world.getBuildings()).stream().filter((building) -> building.getFaction() == self.getFaction()).forEach(alliesBuildings::add);
         alliesMinions.clear();
@@ -708,6 +742,9 @@ public final class MyStrategy implements Strategy {
             calcTreesPotentials();
             calcLanePotentials();
             calcPotentials();
+            bestTargetPair = getBestTarget();
+        } else {
+            bestTargetPair = null;
         }
         
         learnSkills();
@@ -723,18 +760,42 @@ public final class MyStrategy implements Strategy {
     private void updateBlockedTiles()
     {
         PathFinder.blocked = new boolean[POTENTIAL_GRID_SIZE][POTENTIAL_GRID_SIZE];
-        allUnits.forEach((unit) -> {
-            int x = (int)StrictMath.round(unit.getX()/(double)POTENTIAL_GRID_COL_SIZE);
-            int y = (int)StrictMath.round(unit.getY()/(double)POTENTIAL_GRID_COL_SIZE);
-            int r = (int)((unit.getRadius()+self.getRadius())/POTENTIAL_GRID_COL_SIZE)+1;
-            for (int i = StrictMath.max(x-r,0); i <= StrictMath.min(x+r,POTENTIAL_GRID_SIZE-1); i++) {
-                for (int j = StrictMath.max(y-r,0); j <= StrictMath.min(y+r,POTENTIAL_GRID_SIZE-1); j++) {
-                    if (StrictMath.hypot(i-x, j-y) <= r) {
+        allUnitsWithoutTrees.stream().forEach((unit) -> {
+            blockTilesByUnit(unit);
+        });
+        if (world.getTickIndex() % 100 == 0) {
+            PathFinder.treesBlocked = new boolean[POTENTIAL_GRID_SIZE][POTENTIAL_GRID_SIZE];
+            for (Tree tree : world.getTrees()) {
+                blockTilesByUnit(tree, true);
+            }
+        }
+        for (int x = 0; x < POTENTIAL_GRID_SIZE; x++) {
+            for (int y = 0; y < POTENTIAL_GRID_SIZE; y++) {
+                PathFinder.blocked[x][y] |= PathFinder.treesBlocked[x][y];
+            }
+        }
+    }
+    
+    private void blockTilesByUnit(LivingUnit unit, boolean isTree)
+    {
+        Point unitPoint = convert2DToPoint(new Point2D(unit));
+        double r = StrictMath.ceil((unit.getRadius()+self.getRadius())/POTENTIAL_GRID_COL_SIZE);
+        for (int i = StrictMath.max(unitPoint.x-(int)r,0); i <= StrictMath.min(unitPoint.x+(int)r,POTENTIAL_GRID_SIZE-1); i++) {
+            for (int j = StrictMath.max(unitPoint.y-(int)r,0); j <= StrictMath.min(unitPoint.y+(int)r,POTENTIAL_GRID_SIZE-1); j++) {
+                if (unitPoint.getDistanceTo(i, j) <= r) {
+                    if (isTree) {
+                        PathFinder.treesBlocked[i][j] = true;
+                    } else {
                         PathFinder.blocked[i][j] = true;
                     }
-                }                
-            }
-        });
+                }
+            }                
+        }
+    }
+    
+    private void blockTilesByUnit(LivingUnit unit)
+    {
+        blockTilesByUnit(unit, false);
     }
     
     private void checkBulletsCache()
@@ -777,6 +838,9 @@ public final class MyStrategy implements Strategy {
     
     private boolean anyoneSee(Point2D point)
     {
+        if (point.getDistanceTo(self) < self.getVisionRange()) {
+            return true;
+        }
         for (Wizard wizard : alliesWizards) {
             if (point.getDistanceTo(wizard) < wizard.getVisionRange()) {
                 return true;
@@ -911,11 +975,11 @@ public final class MyStrategy implements Strategy {
         
         int[] wizardsCount = {0,0,0};
         alliesWizards.forEach((wizard) -> {
-            if (Math.abs(wizard.getX()+wizard.getY() - world.getWidth()) <= world.getWidth()*0.1) {
+            if (Math.abs(wizard.getX()+wizard.getY() - 4000) <= 400 && wizard.getX() > 500 && wizard.getY() < 3500) {
                 wizardsCount[1]++;
-            } else if (wizard.getX() < 0.2*world.getWidth() || wizard.getY() < 0.2*world.getHeight()) {
+            } else if (wizard.getX() < 800 || wizard.getY() < 800) {
                 wizardsCount[0]++;
-            } else if (wizard.getX() > 0.8*world.getWidth() || wizard.getY() > 0.8*world.getHeight()) {
+            } else if (wizard.getX() > 3200 || wizard.getY() > 3200) {
                 wizardsCount[2]++;
             }
         });
@@ -968,7 +1032,7 @@ public final class MyStrategy implements Strategy {
         return isCurrentLaneToBonus1() || isCurrentLaneToBonus2();
     }
     
-    private void changeLaneToBonus()
+    private void changeLaneToBonus1()
     {
         switch (lane) {
             case TOP:
@@ -979,6 +1043,19 @@ public final class MyStrategy implements Strategy {
                     lane = FakeLaneType.TOP_TO_BONUS1;
                 }
                 break;
+            case MIDDLE:
+            case BONUS1_TO_MIDDLE:
+            case BONUS2_TO_MIDDLE:
+                if (bonusPoint1.getDistanceTo(self) < bonusPoint2.getDistanceTo(self)) {
+                    lane = (self.getX() > 3000.0 && self.getY() < game.getMapSize() - 3000.0) ? FakeLaneType.ENEMYBASE_TO_MIDDLE_BONUS1 : FakeLaneType.MIDDLE_TO_BONUS1;
+                }
+                break;
+        }
+    }
+    
+    private void changeLaneToBonus2()
+    {
+        switch (lane) {
             case BOTTOM:
             case BONUS2_TO_BOTTOM:
                 if (self.getY() < game.getMapSize() - 3000.0) {
@@ -990,10 +1067,8 @@ public final class MyStrategy implements Strategy {
             case MIDDLE:
             case BONUS1_TO_MIDDLE:
             case BONUS2_TO_MIDDLE:
-                if (bonusPoint1.getDistanceTo(self) < bonusPoint2.getDistanceTo(self)) {
-                    lane = (self.getX() > 3000.0 && self.getY() < game.getMapSize() - 3000.0) ? FakeLaneType.ENEMYBASE_TO_MIDDLE_BONUS1 : FakeLaneType.MIDDLE_TO_BONUS1;
-                } else {
-                    lane = (self.getX() > 3000.0 && self.getY() < game.getMapSize() - 3000.0) ? FakeLaneType.ENEMYBASE_TO_MIDDLE_BONUS1 : FakeLaneType.MIDDLE_TO_BONUS2;                    
+                if (bonusPoint2.getDistanceTo(self) < bonusPoint1.getDistanceTo(self)) {
+                    lane = (self.getX() > 3000.0 && self.getY() < game.getMapSize() - 3000.0) ? FakeLaneType.ENEMYBASE_TO_MIDDLE_BONUS2 : FakeLaneType.MIDDLE_TO_BONUS2;                    
                 }
                 break;
         }
@@ -1240,7 +1315,7 @@ public final class MyStrategy implements Strategy {
         LineSegment2D segmentLeft = segment.copy().add(vector);
         vector.rotate(StrictMath.PI);
         LineSegment2D segmentRight = segment.copy().add(vector);
-        double distance = point.getDistanceTo(self);
+        double distance = StrictMath.min(point.getDistanceTo(self), 200.0);
 
         debug.circle(point.x, point.y, self.getRadius()+1.0, Color.YELLOW);
         debug.line(segmentLeft.getX1(), segmentLeft.getY1(), segmentLeft.getX2(), segmentLeft.getY2(), Color.YELLOW);
@@ -1248,7 +1323,7 @@ public final class MyStrategy implements Strategy {
         debug.line(segmentRight.getX1(), segmentRight.getY1(), segmentRight.getX2(), segmentRight.getY2(), Color.YELLOW);
 
         for (LivingUnit unit : allUnits) {
-            if (self.getDistanceTo(unit) > distance) {
+            if (self.getDistanceTo(unit)-self.getRadius()-unit.getRadius() > distance) {
                 continue;
             }
             if (segmentLeft.isCrossingCircle(unit) || segmentRight.isCrossingCircle(unit) || segment.isCrossingCircle(unit)) {

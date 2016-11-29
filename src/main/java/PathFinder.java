@@ -7,6 +7,7 @@ public class PathFinder {
     
     private static PathFinder instance;
     public static boolean[][] blocked;
+    public static boolean[][] treesBlocked;
     
     private PathFinder()
     {
