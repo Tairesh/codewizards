@@ -1,4 +1,7 @@
 
+import model.ActionType;
+import model.Status;
+import model.StatusType;
 import model.Wizard;
 
 public class WizardField extends PotentialField {
@@ -21,8 +24,8 @@ public class WizardField extends PotentialField {
         
         maxCastDist = wizard.getCastRange() + self.getRadius() + MyStrategy.game.getMagicMissileRadius();
         
-        wizardRemainingTicks = StrictMath.max(wizard.getRemainingCooldownTicksByAction()[2], wizard.getRemainingActionCooldownTicks());
-        selfRemainingTicks = StrictMath.max(self.getRemainingCooldownTicksByAction()[2], self.getRemainingActionCooldownTicks());
+        wizardRemainingTicks = wizard.getRemainingActionCooldownTicks();
+        selfRemainingTicks = StrictMath.max(self.getRemainingCooldownTicksByAction()[ActionType.MAGIC_MISSILE.ordinal()], self.getRemainingActionCooldownTicks());
     }
 
     @Override
@@ -43,6 +46,17 @@ public class WizardField extends PotentialField {
                 }
             }
         } else {
+            
+            double dangerFactor = 1.0;
+            for (Status status : wizard.getStatuses()) {
+                if (status.getType() == StatusType.FROZEN && status.getRemainingDurationTicks() > 20) {
+                    return (maxCastDist - distance)*10.0;
+                }
+                if (status.getType() == StatusType.EMPOWERED || status.getType() == StatusType.SHIELDED) {
+                    dangerFactor = 2.0;
+                }
+            }
+            
             double value;
             
             if (wizard.getFaction() == self.getFaction()) {
@@ -51,7 +65,7 @@ public class WizardField extends PotentialField {
                 double dangerAngle = angleKoeff * (MyStrategy.game.getStaffSector() / 2.0) / distFactor;
 
                 value = (absAngle <= dangerAngle) ? -10.0 : (absAngle-dangerAngle)*10.0;
-            } else {
+            } else {                
                 double absAngle = StrictMath.abs(wizard.getAngleTo(x*MyStrategy.POTENTIAL_GRID_COL_SIZE, y*MyStrategy.POTENTIAL_GRID_COL_SIZE));
                 double distFactor = distance / (maxCastDist + colSize); // 0 мы вплотную 1 мы на макс расстоянии атаки
                 double dangerAngle = angleKoeff * (MyStrategy.game.getStaffSector() / 2.0) / distFactor;
@@ -59,7 +73,7 @@ public class WizardField extends PotentialField {
                 value = (absAngle <= dangerAngle) ? -200.0 : -40.0/(absAngle-dangerAngle);
 
                 double cooldownFactor = wizardRemainingTicks < 20 ? (double)(20-wizardRemainingTicks)/20.0 : 1.0;
-                value *= cooldownFactor;
+                value *= cooldownFactor * dangerFactor;
 
                 double selfCastRange = self.getCastRange() + wizard.getRadius() + MyStrategy.game.getMagicMissileRadius();
                 if (distance < selfCastRange && distance > selfCastRange*selfCastRangeMinKoeff - colSize) {

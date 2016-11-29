@@ -52,14 +52,14 @@ public class MinionField extends PotentialField {
             if (minion.getFaction() == self.getFaction()) {
                 return 0.0;
             } else {
-                double selfCastRange = self.getCastRange() + minion.getRadius() + MyStrategy.game.getMagicMissileRadius();
+                double selfCastRange = self.getCastRange()/* + minion.getRadius() + MyStrategy.game.getMagicMissileRadius()*/;
                 if (distance > selfCastRange + colSize) {
                     return 0.0;
                 } else {
-                    double value = -100.0/(distance/maxCastDist);
+                    double value = 10.0/(distance/maxCastDist);
                     if (distance < selfCastRange + colSize && distance > selfCastRange*selfCastRangeMinKoeff - colSize) {
                         double selfCooldownFactor = selfRemainingTicks < 20 ? (double)(20-selfRemainingTicks) : 0.0;
-                        value += 5.0 * selfCooldownFactor;
+                        value += 10.0 * selfCooldownFactor;
                     }
                     return value;
                 }
@@ -87,7 +87,7 @@ public class MinionField extends PotentialField {
                 double selfCastRange = self.getCastRange() + minion.getRadius() + MyStrategy.game.getMagicMissileRadius();
                 if (distance < selfCastRange + colSize && distance > selfCastRange*selfCastRangeMinKoeff - colSize) {
                     double selfCooldownFactor = selfRemainingTicks < 20 ? (double)(20-selfRemainingTicks) : 0.0;
-                    value += 5.0 * selfCooldownFactor;
+                    value += 10.0 * selfCooldownFactor;
                 }
             }
             

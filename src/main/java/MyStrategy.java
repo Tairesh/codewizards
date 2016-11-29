@@ -74,8 +74,8 @@ public final class MyStrategy implements Strategy {
         initStrategy(self, world, game, move);
         initTick(self, world, game, move);
 
-        debug.beginPost();
         if (debugEnabled) {
+            debug.beginPost();
             debug.fillRect(self.getX()-1.0, self.getY()+self.getRadius(), self.getX()+150.0, self.getY()+self.getRadius()+66.0, Color.WHITE);
             debug.text(self.getX(), self.getY()+self.getRadius()+5.0, "Next bonus: "+ticksToNextBonus, Color.BLACK);
             debug.text(self.getX(), self.getY()+self.getRadius()+20.0, "Lane: "+lane.name(), Color.BLACK);
@@ -87,8 +87,8 @@ public final class MyStrategy implements Strategy {
         walk();
         shoot();
         
-        debug.endPost();
         if (debugEnabled) {
+            debug.endPost();
             debug.beginPre();
             
             int startX = (int)(self.getX()-self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
@@ -106,19 +106,18 @@ public final class MyStrategy implements Strategy {
                     } else {
                         debug.fillCircle(x*POTENTIAL_GRID_COL_SIZE, y*POTENTIAL_GRID_COL_SIZE, POTENTIAL_GRID_COL_SIZE/2, debugColor(potentialGrid[x][y]));
                     }
-//                    debug.rect(x*POTENTIAL_GRID_COL_SIZE, y*POTENTIAL_GRID_COL_SIZE, (x+1)*POTENTIAL_GRID_COL_SIZE, (y+1)*POTENTIAL_GRID_COL_SIZE, Color.BLACK);
-                    debug.text(x*POTENTIAL_GRID_COL_SIZE-5, y*POTENTIAL_GRID_COL_SIZE+5, ""+(int)potentialGrid[x][y], Color.BLACK);
+                    debug.text(x*POTENTIAL_GRID_COL_SIZE-10.0, y*POTENTIAL_GRID_COL_SIZE+5, ""+(int)potentialGrid[x][y], Color.BLACK);
                 }
             }
-            for (Wizard wizard : enemyWizards) {
+            enemyWizards.forEach((wizard) -> {
                 debug.circle(wizard.getX(), wizard.getY(), wizard.getRadius()-1.0, Color.PINK);
-            }
-            for (Minion minion : enemyMinions) {
+            });
+            enemyMinions.forEach((minion) -> {
                 debug.circle(minion.getX(), minion.getY(), minion.getRadius()-1.0, Color.PINK);
-            }
-            for (Building building : enemyBuildings) {
+            });
+            enemyBuildings.forEach((building) -> {
                 debug.circle(building.getX(), building.getY(), building.getRadius()-1.0, Color.PINK);
-            }
+            });
             debug.endPre();
         }
         

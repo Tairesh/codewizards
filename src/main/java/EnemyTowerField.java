@@ -1,4 +1,5 @@
 
+import model.ActionType;
 import model.Building;
 import model.Wizard;
 
@@ -20,7 +21,7 @@ public class EnemyTowerField extends PotentialField {
         this.self = self;
         
         maxCastDist = building.getAttackRange() + self.getRadius();
-        selfRemainingTicks = StrictMath.max(self.getRemainingCooldownTicksByAction()[2], self.getRemainingActionCooldownTicks());
+        selfRemainingTicks = StrictMath.max(self.getRemainingCooldownTicksByAction()[ActionType.MAGIC_MISSILE.ordinal()], self.getRemainingActionCooldownTicks());
         buildingRemainingTicks = building.getRemainingActionCooldownTicks();
     }
 
@@ -33,9 +34,13 @@ public class EnemyTowerField extends PotentialField {
         if (distance < building.getRadius() + colSize) {
             return -200.0;
         } else if (distance > maxCastDist + colSize) {
-            return 50.0/(distance/maxCastDist);
+            if (distance > maxCastDist*2 + colSize) {
+                return 0.0;
+            } else {
+                return 100.0/(distance/maxCastDist);
+            }
         } else {
-            double value = -200.0;
+            double value = -100.0;
             double cooldownFactor = buildingRemainingTicks < 30 ? (double)(30-buildingRemainingTicks)/30.0 : 0.0;
             value *= cooldownFactor;
             
