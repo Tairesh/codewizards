@@ -671,7 +671,7 @@ public final class MyStrategy implements Strategy {
                 
         changeLaneToBest();
         ticksToNextBonus = game.getBonusAppearanceIntervalTicks() - (world.getTickIndex() % game.getBonusAppearanceIntervalTicks()) - 1;
-        if (ticksToNextBonus < StrictMath.min(bonusPoint1.getDistanceTo(self), bonusPoint2.getDistanceTo(self))/4.0 || bonus1 || bonus2) {
+        if (ticksToNextBonus < StrictMath.min(bonusPoint1.getDistanceTo(self), bonusPoint2.getDistanceTo(self))/3.5 || bonus1 || bonus2) {
             changeLaneToBonus();
         }
         checkBonuses();
@@ -702,11 +702,14 @@ public final class MyStrategy implements Strategy {
         alliesMinions.clear();
         Arrays.asList(world.getMinions()).stream().filter((minion) -> minion.getFaction() == self.getFaction()).forEach(alliesMinions::add);
         
-        updateBlockedTiles();
-        calcTreesPotentials();
-        calcLanePotentials();
-        calcPotentials();
         isEnemiesNear = isEnemiesNear();
+        
+        updateBlockedTiles();
+        if (isEnemiesNear) {
+            calcTreesPotentials();
+            calcLanePotentials();
+            calcPotentials();
+        }
         
         learnSkills();
     }
