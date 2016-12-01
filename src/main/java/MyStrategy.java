@@ -12,8 +12,8 @@ import model.*;
 
 public final class MyStrategy implements Strategy {
     
-    private final IVisualClient debug = new EmptyVisualClient();
-    private final boolean debugEnabled = false;
+    private final IVisualClient debug = new VisualClient();
+    private final boolean debugEnabled = true;
     private final PathFinder pathFinder = PathFinder.getInstance();
     private final GlobalMap globalMap = GlobalMap.getInstance();
     private Random random;
@@ -228,6 +228,7 @@ public final class MyStrategy implements Strategy {
                     && inAngle
                     && !isTargetFrozen
 //                    && bestTargetScore >= 100
+                    && bestTarget.getLife() > game.getFrostBoltDirectDamage()
                     && bestTarget.getClass() == Wizard.class) {
                 move.setAction(ActionType.FROST_BOLT);
                 move.setMinCastDistance(distance-bestTarget.getRadius()-game.getFrostBoltRadius());
@@ -273,7 +274,7 @@ public final class MyStrategy implements Strategy {
                 targetPoint2D = getPathPointToTarget(previousWaypoint);
             } else if (isCurrentLaneToBonus()) {
                 targetPoint2D = getPathPointToTarget(nextWaypoint);
-            } else if (distance > self.getCastRange()) { // идти к врагу если он далеко
+            } else if (distance > self.getCastRange() && self.getRemainingActionCooldownTicks() < 10) { // идти к врагу если он далеко
                 targetPoint2D = getPathPointToTarget(Point2D.pointBetween(self, bestTarget));
             } else {
                 Point best = getBestPoint();
@@ -287,7 +288,7 @@ public final class MyStrategy implements Strategy {
         } else {
             targetPoint2D = getPathPointToTarget(getPseudoNextPoint());
         }
-        boolean needStayAroundBonus = ((isCurrentLaneToBonus1() && !bonus1) || (isCurrentLaneToBonus2() && !bonus2));
+        boolean needStayAroundBonus = ((isCurrentLaneToBonus1() && targetPoint2D.getDistanceTo(bonusPoint1) < 5.0 && !bonus1) || (isCurrentLaneToBonus2() && targetPoint2D.getDistanceTo(bonusPoint2) < 5.0 && !bonus2));
         boolean weAreAroundNextPoint = self.getDistanceTo(targetPoint2D.x, targetPoint2D.y) < self.getRadius()+game.getBonusRadius()+5.0;
         if (!needStayAroundBonus || !weAreAroundNextPoint) {
             debug.line(self.getX(), self.getY(), targetPoint2D.x, targetPoint2D.y, Color.CYAN);
@@ -336,7 +337,8 @@ public final class MyStrategy implements Strategy {
                         tmp = point;
                     }
                 }
-                return convertPointTo2D(path.get(0));
+                
+                return convertPointTo2D(path.get(path.size() > 1 ? 1 : 0));
             }
         }
         return targetPoint2D;
@@ -416,11 +418,22 @@ public final class MyStrategy implements Strategy {
                 score += 100;
             } else if (unit.getClass() == Building.class) {
                 score += 10;
+            } else if (unit.getClass() == Minion.class) {
+                switch (((Minion)unit).getType()) {
+                    case ORC_WOODCUTTER:
+                        if (unit.getDistanceTo(self)+self.getRadius() < game.getOrcWoodcutterAttackRange()*2.0 && unit.getAngleTo(self) <= game.getOrcWoodcutterAttackSector()/2.0) {
+                            score += 100;
+                        }
+                        break;
+                    case FETISH_BLOWDART:
+                        if (unit.getDistanceTo(self)+self.getRadius() < game.getFetishBlowdartAttackRange()*1.5 && unit.getAngleTo(self) <= game.getFetishBlowdartAttackSector()/2.0) {
+                            score += 100;
+                        }
+                        break;
+                }
             }
             
-            if (unit.getDistanceTo(self)+self.getRadius() < game.getOrcWoodcutterAttackRange()*3.0 && unit.getAngleTo(self) <= game.getOrcWoodcutterAttackSector()/2.0) {
-                score += 100;
-            }
+            
             
             score += 1 - unit.getLife()/unit.getMaxLife();
             
@@ -518,7 +531,6 @@ public final class MyStrategy implements Strategy {
     
     private Point getBestPoint()
     {
-        Point selfPoint = new Point((int)self.getX()/POTENTIAL_GRID_COL_SIZE,(int)self.getY()/POTENTIAL_GRID_COL_SIZE);
         List<Point> list = getBestPoints();
         Point best = null;
         double minDist = Double.MAX_VALUE;
@@ -546,15 +558,22 @@ public final class MyStrategy implements Strategy {
         endY = (endY >= POTENTIAL_GRID_SIZE) ? POTENTIAL_GRID_SIZE-1 : endY;
         for (int x = startX; x <= endX; x++) {
             for (int y = startY; y <= endY; y++) {
-                points.add(new Point(x,y));
+                if (!PathFinder.blocked[x][y]) {
+                    points.add(new Point(x,y));
+                }
             }
         }
         
-        points.sort((o1, o2) -> getPointValueWithNeighbours(o1) > getPointValueWithNeighbours(o2) ? -1 : 1);
+        points.sort((o1, o2) -> {
+            double val1 = getPointValueWithNeighbours(o1);
+            double val2 = getPointValueWithNeighbours(o2);
+            if (val1 == val2) return 0;
+            else return val1 > val2 ? -1 : 1;
+        });
 
         List<Point> list = new ArrayList<>(n);
         for (Point point : points){
-            if (!isCrossing(new Point2D(point.x*POTENTIAL_GRID_COL_SIZE, point.y*POTENTIAL_GRID_COL_SIZE))) {
+            if (!isCrossing(convertPointTo2D(point))) {
                 list.add(point);
                 if (list.size() == n) {
                     break;
@@ -763,17 +782,17 @@ public final class MyStrategy implements Strategy {
         allUnitsWithoutTrees.stream().forEach((unit) -> {
             blockTilesByUnit(unit);
         });
-        if (world.getTickIndex() % 100 == 0) {
-            PathFinder.treesBlocked = new boolean[POTENTIAL_GRID_SIZE][POTENTIAL_GRID_SIZE];
-            for (Tree tree : world.getTrees()) {
-                blockTilesByUnit(tree, true);
-            }
-        }
-        for (int x = 0; x < POTENTIAL_GRID_SIZE; x++) {
-            for (int y = 0; y < POTENTIAL_GRID_SIZE; y++) {
-                PathFinder.blocked[x][y] |= PathFinder.treesBlocked[x][y];
-            }
-        }
+//        if (world.getTickIndex() % 100 == 0) {
+//            PathFinder.treesBlocked = new boolean[POTENTIAL_GRID_SIZE][POTENTIAL_GRID_SIZE];
+//            for (Tree tree : world.getTrees()) {
+//                blockTilesByUnit(tree, true);
+//            }
+//        }
+//        for (int x = 0; x < POTENTIAL_GRID_SIZE; x++) {
+//            for (int y = 0; y < POTENTIAL_GRID_SIZE; y++) {
+//                PathFinder.blocked[x][y] |= PathFinder.treesBlocked[x][y];
+//            }
+//        }
     }
     
     private void blockTilesByUnit(LivingUnit unit, boolean isTree)
@@ -782,7 +801,7 @@ public final class MyStrategy implements Strategy {
         double r = StrictMath.ceil((unit.getRadius()+self.getRadius())/POTENTIAL_GRID_COL_SIZE);
         for (int i = StrictMath.max(unitPoint.x-(int)r,0); i <= StrictMath.min(unitPoint.x+(int)r,POTENTIAL_GRID_SIZE-1); i++) {
             for (int j = StrictMath.max(unitPoint.y-(int)r,0); j <= StrictMath.min(unitPoint.y+(int)r,POTENTIAL_GRID_SIZE-1); j++) {
-                if (unitPoint.getDistanceTo(i, j) <= r) {
+                if (unitPoint.getDistanceTo(i, j) < r) {
                     if (isTree) {
                         PathFinder.treesBlocked[i][j] = true;
                     } else {
@@ -1204,20 +1223,20 @@ public final class MyStrategy implements Strategy {
         for (int x = startX; x <= endX; x++) {
             for (int y = startY; y <= endY; y++) {
                 potentialGrid[x][y] = 0.0;
-                double max = -Double.MAX_VALUE;
+//                double max = -Double.MAX_VALUE;
                 for (PotentialField field : fields) {
                     double value = field.getValue(x, y);
-                    if (value > 0)  {
-                        if (value > max) {
-                            max = value;
-                        }
-                    } else {
+//                    if (value > 0)  {
+//                        if (value > max) {
+//                            max = value;
+//                        }
+//                    } else {
                         potentialGrid[x][y] += value;
-                    }
+//                    }
                 }
-                if (max > -Double.MAX_VALUE+1) {
-                    potentialGrid[x][y] += max;
-                }
+//                if (max > -Double.MAX_VALUE+1) {
+//                    potentialGrid[x][y] += max;
+//                }
                 
                 potentialGrid[x][y] += staticPotentialGrid[x][y];
                 potentialGrid[x][y] += treesPotentialGrid[x][y];

@@ -47,7 +47,7 @@ public class MinionField extends PotentialField {
         
         
         if (distance < minion.getRadius() + colSize) {
-            return -200.0;
+            return -500.0;
         } else if (distance > maxCastDist + colSize) {
             if (minion.getFaction() == self.getFaction()) {
                 return 0.0;
@@ -59,7 +59,7 @@ public class MinionField extends PotentialField {
                     double value = 10.0/(distance/maxCastDist);
                     if (distance < selfCastRange + colSize && distance > selfCastRange*selfCastRangeMinKoeff - colSize) {
                         double selfCooldownFactor = selfRemainingTicks < 20 ? (double)(20-selfRemainingTicks) : 0.0;
-                        value += 10.0 * selfCooldownFactor;
+                        value += 20.0 * selfCooldownFactor;
                     }
                     return value;
                 }
@@ -79,15 +79,15 @@ public class MinionField extends PotentialField {
                 double distFactor = distance / (maxCastDist + colSize); // 0 мы вплотную 1 мы на макс расстоянии атаки
                 double dangerAngle = angleKoeff * (maxCastSector / 2.0) / distFactor;
 
-                value = (absAngle <= dangerAngle) ? -200.0 : -75.0/(absAngle-dangerAngle);
+                value = (absAngle <= dangerAngle) ? -500.0 : -300.0/(absAngle-dangerAngle);
                 
-                double cooldownFactor = remainingTicks < 20 ? (double)(20-remainingTicks)/20.0 : 1.0;
-                value *= cooldownFactor;
+//                double cooldownFactor = remainingTicks < 20 ? (double)(20-remainingTicks)/20.0 : 1.0;
+//                value *= cooldownFactor;
                 
                 double selfCastRange = self.getCastRange() + minion.getRadius() + MyStrategy.game.getMagicMissileRadius();
                 if (distance < selfCastRange + colSize && distance > selfCastRange*selfCastRangeMinKoeff - colSize) {
                     double selfCooldownFactor = selfRemainingTicks < 20 ? (double)(20-selfRemainingTicks) : 0.0;
-                    value += 10.0 * selfCooldownFactor;
+                    value += 20.0 * selfCooldownFactor;
                 }
             }
             

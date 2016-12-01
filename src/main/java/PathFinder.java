@@ -9,6 +9,8 @@ public class PathFinder {
     public static boolean[][] blocked;
     public static boolean[][] treesBlocked;
     
+    private List<Point> lastCalculatedPath = null;
+    
     private PathFinder()
     {
         
@@ -42,6 +44,7 @@ public class PathFinder {
         });
         
         Collections.reverse(result);
+        lastCalculatedPath = result;
         return result;
     }
     
@@ -49,9 +52,57 @@ public class PathFinder {
     {
         PathFinderPoint point = new PathFinderPoint(_point.x, _point.y);
         List<PathFinderPoint> neigbors = point.getNeighbours();
-        PathFinderPoint max = Collections.max(neigbors, (o1, o2) -> MyStrategy.potentialGrid[o1.x][o1.y] < MyStrategy.potentialGrid[o2.x][o2.y] ? -1 : 1);
+        PathFinderPoint max = neigbors.stream().max((o1, o2) -> {
+            double val1 = MyStrategy.potentialGrid[o1.x][o1.y];
+            double val2 = MyStrategy.potentialGrid[o2.x][o2.y];
+            if (val1 == val2) return 0;
+            else return val1 < val2 ? -1 : 1;
+        }).orElse(point);
         Point maxPoint = new Point(max.x, max.y);
         return (blocked[max.x][max.y] && recursive) ? getOtherFinishPoint(maxPoint, false) : maxPoint;
+    }
+    
+    private boolean checkPath(Point from, Point to)
+    {
+        if (blocked[to.x][to.y]) {
+            return false;
+        }
+        PathFinderPoint end = new PathFinderPoint(to.x, to.y);
+        boolean endAllBlocked = true;
+        for (PathFinderPoint n : end.getNeighbours()) {
+            if (!blocked[n.x][n.y]) {
+                endAllBlocked = false;
+                break;
+            }
+        }
+        if (endAllBlocked) {
+            return false;
+        }
+        PathFinderPoint start = new PathFinderPoint(from.x, from.y);
+        boolean allBlocked = true;
+        for (PathFinderPoint n : start.getNeighbours()) {
+            if (!blocked[n.x][n.y]) {
+                allBlocked = false;
+                break;
+            }
+        }
+        return !allBlocked;
+    }
+    
+    private boolean isNeighbour(Point point1, Point point2)
+    {
+        if (point1.equals(point2)) {
+            return true;
+        }
+        return (new PathFinderPoint(point1.x, point1.y)).getNeighbours().stream().anyMatch((n) -> (n.equals(point2)));
+    }
+    
+    private boolean needRecalc(Point from, Point to)
+    {
+        if (null != lastCalculatedPath && isNeighbour(lastCalculatedPath.get(0),from) && isNeighbour(lastCalculatedPath.get(lastCalculatedPath.size()-1),to)) {
+            return lastCalculatedPath.stream().anyMatch((p) -> (blocked[p.x][p.y]));
+        }
+        return true;
     }
     
     public List<Point> getPath(Point from, Point to)
@@ -59,9 +110,14 @@ public class PathFinder {
         if (blocked[to.x][to.y]) {
             to = getOtherFinishPoint(to, true);
         }
-        if (blocked[to.x][to.y]) {
+        if (!checkPath(from, to)) {
             return null;
         }
+        if (!needRecalc(from, to)) {
+            return lastCalculatedPath;
+        }
+        lastCalculatedPath = null;
+        
         List<PathFinderPoint> openList = new ArrayList<>();
         boolean[][] added = new boolean[MyStrategy.POTENTIAL_GRID_SIZE][MyStrategy.POTENTIAL_GRID_SIZE];
         
