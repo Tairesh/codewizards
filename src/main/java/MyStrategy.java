@@ -82,8 +82,9 @@ public final class MyStrategy implements Strategy {
             debug.text(self.getX(), self.getY()+self.getRadius()+5.0, "Next bonus: "+ticksToNextBonus, Color.BLACK);
             debug.text(self.getX(), self.getY()+self.getRadius()+20.0, "Lane: "+lane.name(), Color.BLACK);
             debug.text(self.getX(), self.getY()+self.getRadius()+35.0, "Bonuses: "+bonus1+" "+bonus2, Color.BLACK);
-            debug.text(self.getX(), self.getY()+self.getRadius()+50.0, "Level: "+self.getLevel(), Color.BLACK);
-            debug.text(self.getX(), self.getY()+self.getRadius()+65.0, "Skille: "+self.getSkills().length, Color.BLACK);
+//            debug.text(self.getX(), self.getY()+self.getRadius()+50.0, "Level: "+self.getLevel(), Color.BLACK);
+//            debug.text(self.getX(), self.getY()+self.getRadius()+65.0, "Skille: "+self.getSkills().length, Color.BLACK);
+            debug.text(self.getX(), self.getY()+self.getRadius()+50.0, "Anyone can fire: "+anyOneCanFireMe(), Color.BLACK);
         }
               
         walk();
@@ -354,7 +355,7 @@ public final class MyStrategy implements Strategy {
         if (enemyBuildings.stream().anyMatch((building) -> (self.getDistanceTo(building) <= building.getAttackRange()+self.getRadius()))) {
             return true;
         }
-        if (enemyMinions.stream().anyMatch((minion) -> (self.getDistanceTo(minion) <= StrictMath.max(self.getCastRange()+minion.getRadius(), getMinionattackRange(minion)+self.getRadius())))) {
+        if (enemyMinions.stream().anyMatch((minion) -> (self.getDistanceTo(minion) <= StrictMath.max(self.getCastRange()+minion.getRadius(), getMinionAttackRange(minion)+self.getRadius())))) {
             return true;
         }        
         if (enemyWizards.stream().anyMatch((wizard) -> (self.getDistanceTo(wizard) <= StrictMath.max(self.getCastRange(), wizard.getCastRange())+game.getWizardRadius()))) {
@@ -363,13 +364,25 @@ public final class MyStrategy implements Strategy {
         return false;
     }
     
-    private double getMinionattackRange(Minion minion)
+    private double getMinionAttackRange(Minion minion)
     {
         switch (minion.getType()) {
             case ORC_WOODCUTTER:
                 return game.getOrcWoodcutterAttackRange();
             case FETISH_BLOWDART:
                 return game.getFetishBlowdartAttackRange();
+        }
+        
+        return 0.0;
+    }
+    
+    private double getMinionAttackSector(Minion minion)
+    {
+        switch (minion.getType()) {
+            case ORC_WOODCUTTER:
+                return game.getOrcWoodcutterAttackSector();
+            case FETISH_BLOWDART:
+                return game.getFetishBlowdartAttackSector();
         }
         
         return 0.0;
@@ -777,6 +790,25 @@ public final class MyStrategy implements Strategy {
         }
         
         learnSkills();
+    }
+    
+    private boolean anyOneCanFireMe()
+    {
+        for (Wizard wizard : enemyWizards) {
+            if (wizard.getDistanceTo(self) < wizard.getCastRange()+self.getRadius()
+                && wizard.getAngleTo(self) < game.getStaffSector() / 2.0
+                && wizard.getRemainingActionCooldownTicks() == 0) {
+                return true;
+            }
+        }
+        for (Minion minion : enemyMinions) {
+            if (minion.getDistanceTo(self) < getMinionAttackRange(minion)+self.getRadius()
+                && minion.getAngleTo(self) < getMinionAttackSector(minion) / 2.0
+                && minion.getRemainingActionCooldownTicks() == 0) {
+                return true;
+            }
+        }
+        return false;
     }
     
     private void changeLaneToBest()
