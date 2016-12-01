@@ -1,7 +1,7 @@
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
+
 
 public class PathFinder {
     
@@ -13,7 +13,7 @@ public class PathFinder {
     
     private PathFinder()
     {
-        
+
     }
     
     public static PathFinder getInstance()
@@ -23,36 +23,11 @@ public class PathFinder {
         }
         return instance;
     }
-    
-    private double getHeuristicValue(Point point)
-    {
-        double potential = MyStrategy.potentialGrid[point.x][point.y];
-        if (potential < 0) {
-            return potential*-0.1;
-        } else {
-            return 0.0;
-        }
-    }
         
-    private List<Point> smoothAndReversePath(List<PathFinderPoint> path)
+    private Point getOtherFinishPoint(Point point, boolean recursive)
     {
-        List<Point> result = new ArrayList<>(path.size());
-        
-        // @todo smooth
-        path.forEach((point) -> {
-            result.add(new Point(point.x, point.y));
-        });
-        
-        Collections.reverse(result);
-        lastCalculatedPath = result;
-        return result;
-    }
-    
-    private Point getOtherFinishPoint(Point _point, boolean recursive)
-    {
-        PathFinderPoint point = new PathFinderPoint(_point.x, _point.y);
-        List<PathFinderPoint> neigbors = point.getNeighbours();
-        PathFinderPoint max = neigbors.stream().max((o1, o2) -> {
+        List<Point> neigbors = getNeighbours(point);
+        Point max = neigbors.stream().max((o1, o2) -> {
             double val1 = MyStrategy.potentialGrid[o1.x][o1.y];
             double val2 = MyStrategy.potentialGrid[o2.x][o2.y];
             if (val1 == val2) return 0;
@@ -67,9 +42,8 @@ public class PathFinder {
         if (blocked[to.x][to.y]) {
             return false;
         }
-        PathFinderPoint end = new PathFinderPoint(to.x, to.y);
         boolean endAllBlocked = true;
-        for (PathFinderPoint n : end.getNeighbours()) {
+        for (Point n : getNeighbours(to)) {
             if (!blocked[n.x][n.y]) {
                 endAllBlocked = false;
                 break;
@@ -78,9 +52,8 @@ public class PathFinder {
         if (endAllBlocked) {
             return false;
         }
-        PathFinderPoint start = new PathFinderPoint(from.x, from.y);
         boolean allBlocked = true;
-        for (PathFinderPoint n : start.getNeighbours()) {
+        for (Point n : getNeighbours(from)) {
             if (!blocked[n.x][n.y]) {
                 allBlocked = false;
                 break;
@@ -89,12 +62,45 @@ public class PathFinder {
         return !allBlocked;
     }
     
+    private List<Point> getNeighbours(Point point)
+    {
+        int x = point.x;
+        int y = point.y;
+        
+        List<Point> neigbors = new ArrayList<>(8);
+        if (x > 0) { // влево
+            neigbors.add(new Point(x-1, y));
+        }
+        if (x < MyStrategy.POTENTIAL_GRID_SIZE-1) { // вправо
+            neigbors.add(new Point(x+1, y));
+        }
+        if (y > 0) { // вверх
+            neigbors.add(new Point(x, y-1));
+        }
+        if (y < MyStrategy.POTENTIAL_GRID_SIZE-1) { // вниз
+            neigbors.add(new Point(x, y+1));
+        }
+        if (x > 0 && y > 0) { // влево вверх
+            neigbors.add(new Point(x-1, y-1));
+        }
+        if (x < MyStrategy.POTENTIAL_GRID_SIZE-1 && y > 0) { // вправо вверх
+            neigbors.add(new Point(x+1, y-1));
+        }
+        if (x > 0 && y < MyStrategy.POTENTIAL_GRID_SIZE-1) { // влево вниз
+            neigbors.add(new Point(x-1, y+1));
+        }
+        if (x < MyStrategy.POTENTIAL_GRID_SIZE-1 && y < MyStrategy.POTENTIAL_GRID_SIZE-1) { // вправо вниз
+            neigbors.add(new Point(x+1, y+1));
+        }
+        return neigbors;
+    }
+    
     private boolean isNeighbour(Point point1, Point point2)
     {
         if (point1.equals(point2)) {
             return true;
         }
-        return (new PathFinderPoint(point1.x, point1.y)).getNeighbours().stream().anyMatch((n) -> (n.equals(point2)));
+        return getNeighbours(point1).stream().anyMatch((n) -> (n.equals(point2)));
     }
     
     private boolean needRecalc(Point from, Point to)
@@ -116,48 +122,22 @@ public class PathFinder {
         if (!needRecalc(from, to)) {
             return lastCalculatedPath;
         }
-        lastCalculatedPath = null;
         
-        List<PathFinderPoint> openList = new ArrayList<>();
-        boolean[][] added = new boolean[MyStrategy.POTENTIAL_GRID_SIZE][MyStrategy.POTENTIAL_GRID_SIZE];
-        
-        PathFinderPoint start = new PathFinderPoint(from.x, from.y);
-        start.g = 0.0;
-        start.h = from.getDistanceTo(to);
-        
-        openList.add(start);
-        
-        while(openList.size() > 0 && openList.size() < 10000) {
-            PathFinderPoint currentPoint = Collections.min(openList, (o1, o2) -> o1.compareTo(o2));
-                        
-            openList.remove(currentPoint);
-            added[currentPoint.x][currentPoint.y] = true;
-            
-            if (currentPoint.equals(to)) {
-                List<PathFinderPoint> path = new ArrayList<>();
-                do {
-                    path.add(currentPoint);
-                    currentPoint = currentPoint.previous;
-                } while (currentPoint != null && !currentPoint.equals(start));
- 
-                return smoothAndReversePath(path);
-            }
-            
-            // поиск соседей
-            List<PathFinderPoint> neigbors = currentPoint.getNeighbours();
-            
-            for (PathFinderPoint newPoint : neigbors) {
-                if (added[newPoint.x][newPoint.y] || blocked[newPoint.x][newPoint.y]) {
-                    continue;
-                }
-                newPoint.previous = currentPoint;                                                
-                newPoint.g = currentPoint.g + getHeuristicValue(newPoint);
-                newPoint.h = newPoint.getDistanceTo(to);
-                openList.add(newPoint);
+        AAPFGridGraph graph = new AAPFGridGraph(MyStrategy.POTENTIAL_GRID_SIZE,MyStrategy.POTENTIAL_GRID_SIZE);
+        for (int i = 0; i < MyStrategy.POTENTIAL_GRID_SIZE; i++) {
+            for (int j = 0; j < MyStrategy.POTENTIAL_GRID_SIZE; j++) {
+                graph.trySetBlocked(i, j, blocked[i][j]);
             }
         }
         
-        return null;
+        int[][] path = AAPFUtility.generatePath(AAPFBasicThetaStar::postSmooth, graph, from.x, from.y, to.x, to.y);
+        
+        lastCalculatedPath = new ArrayList<>(path.length);
+        for (int[] p : path) {
+            lastCalculatedPath.add(new Point(p[0], p[1]));
+        }
+        
+        return lastCalculatedPath;
     }
     
 }

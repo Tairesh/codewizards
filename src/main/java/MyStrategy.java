@@ -12,8 +12,8 @@ import model.*;
 
 public final class MyStrategy implements Strategy {
     
-    private final IVisualClient debug = new VisualClient();
-    private final boolean debugEnabled = true;
+    private final IVisualClient debug = new EmptyVisualClient();
+    private final boolean debugEnabled = false;
     private final PathFinder pathFinder = PathFinder.getInstance();
     private final GlobalMap globalMap = GlobalMap.getInstance();
     private Random random;
@@ -261,7 +261,7 @@ public final class MyStrategy implements Strategy {
             
             double distance = self.getDistanceTo(bestTarget);
             double selfPotential = potentialGrid[selfPoint.x][selfPoint.y];
-            if (selfPotential < PSEUDO_SAFE_POTENTIAL) {
+            if (selfPotential < PSEUDO_SAFE_POTENTIAL || self.getLife() < 0.35*self.getMaxLife()) {
                 Point safe = getNearestPseudoSafePoint();
                 if (safe != null) {
                     targetPoint2D = getPathPointToTarget(safe);
@@ -507,10 +507,10 @@ public final class MyStrategy implements Strategy {
     }
     
     private Point getNearestPseudoSafePoint()
-    {
+    {   
         double minDist = Double.POSITIVE_INFINITY;
         int[] coords = {-1,-1};
-        
+                
         int startX = (int)(self.getX()-self.getVisionRange()/2.0)/POTENTIAL_GRID_COL_SIZE;
         int startY = (int)(self.getY()-self.getVisionRange()/2.0)/POTENTIAL_GRID_COL_SIZE;
         int endX = (int)(self.getX()+self.getVisionRange()/2.0)/POTENTIAL_GRID_COL_SIZE;
@@ -534,8 +534,8 @@ public final class MyStrategy implements Strategy {
         
         if (coords[0] >=0 && coords[1] >= 0) {
             return new Point(coords[0], coords[1]);
-        }
-        
+            }
+                
         return null;
     }
     
@@ -792,23 +792,23 @@ public final class MyStrategy implements Strategy {
         allUnitsWithoutTrees.stream().forEach((unit) -> {
             blockTilesByUnit(unit);
         });
-//        if (world.getTickIndex() % 100 == 0) {
-//            PathFinder.treesBlocked = new boolean[POTENTIAL_GRID_SIZE][POTENTIAL_GRID_SIZE];
-//            for (Tree tree : world.getTrees()) {
-//                blockTilesByUnit(tree, true);
-//            }
-//        }
-//        for (int x = 0; x < POTENTIAL_GRID_SIZE; x++) {
-//            for (int y = 0; y < POTENTIAL_GRID_SIZE; y++) {
-//                PathFinder.blocked[x][y] |= PathFinder.treesBlocked[x][y];
-//            }
-//        }
+        if (world.getTickIndex() % 50 == 0) {
+            PathFinder.treesBlocked = new boolean[POTENTIAL_GRID_SIZE][POTENTIAL_GRID_SIZE];
+            for (Tree tree : world.getTrees()) {
+                blockTilesByUnit(tree, true);
+            }
+        }
+        for (int x = 0; x < POTENTIAL_GRID_SIZE; x++) {
+            for (int y = 0; y < POTENTIAL_GRID_SIZE; y++) {
+                PathFinder.blocked[x][y] |= PathFinder.treesBlocked[x][y];
+            }
+        }
     }
     
     private void blockTilesByUnit(LivingUnit unit, boolean isTree)
     {
         Point unitPoint = convert2DToPoint(new Point2D(unit));
-        double r = StrictMath.ceil((unit.getRadius()+self.getRadius())/POTENTIAL_GRID_COL_SIZE);
+        double r = StrictMath.ceil((unit.getRadius()+self.getRadius())/POTENTIAL_GRID_COL_SIZE)+1;
         for (int i = StrictMath.max(unitPoint.x-(int)r,0); i <= StrictMath.min(unitPoint.x+(int)r,POTENTIAL_GRID_SIZE-1); i++) {
             for (int j = StrictMath.max(unitPoint.y-(int)r,0); j <= StrictMath.min(unitPoint.y+(int)r,POTENTIAL_GRID_SIZE-1); j++) {
                 if (unitPoint.getDistanceTo(i, j) < r) {
@@ -959,24 +959,40 @@ public final class MyStrategy implements Strategy {
         switch (lane) {
             case ENEMYBASE_TO_TOP_BONUS1:
             case TOP_TO_BONUS1:
+                lane = FakeLaneType.BONUS1_TO_TOP;
+                break;
             case MIDDLE_TO_BONUS1:
             case ENEMYBASE_TO_MIDDLE_BONUS1:
-                if (getBestLane() == FakeLaneType.TOP) {
-                    lane = FakeLaneType.BONUS1_TO_TOP;
-                } else {
-                    lane = FakeLaneType.BONUS1_TO_MIDDLE;
-                }
+                lane = FakeLaneType.BONUS1_TO_MIDDLE;
                 break;
             case ENEMYBASE_TO_BOTTOM_BONUS2:
             case BOTTOM_TO_BONUS2:                
+                lane = FakeLaneType.BONUS2_TO_BOTTOM;
+                break;
             case MIDDLE_TO_BONUS2:
             case ENEMYBASE_TO_MIDDLE_BONUS2:
-                if (getBestLane() == FakeLaneType.BOTTOM) {
-                    lane = FakeLaneType.BONUS2_TO_BOTTOM;
-                } else {
-                    lane = FakeLaneType.BONUS2_TO_MIDDLE;
-                }
+                lane = FakeLaneType.BONUS2_TO_MIDDLE;
                 break;
+//            case ENEMYBASE_TO_TOP_BONUS1:
+//            case TOP_TO_BONUS1:
+//            case MIDDLE_TO_BONUS1:
+//            case ENEMYBASE_TO_MIDDLE_BONUS1:
+//                if (getBestLane() == FakeLaneType.TOP) {
+//                    lane = FakeLaneType.BONUS1_TO_TOP;
+//                } else {
+//                    lane = FakeLaneType.BONUS1_TO_MIDDLE;
+//                }
+//                break;
+//            case ENEMYBASE_TO_BOTTOM_BONUS2:
+//            case BOTTOM_TO_BONUS2:                
+//            case MIDDLE_TO_BONUS2:
+//            case ENEMYBASE_TO_MIDDLE_BONUS2:
+//                if (getBestLane() == FakeLaneType.BOTTOM) {
+//                    lane = FakeLaneType.BONUS2_TO_BOTTOM;
+//                } else {
+//                    lane = FakeLaneType.BONUS2_TO_MIDDLE;
+//                }
+//                break;
         }
     }
     
@@ -1124,23 +1140,24 @@ public final class MyStrategy implements Strategy {
     
     private void calcLanePotentials()
     {
-        if (world.getTickIndex() % 50 == 0) {
+        if (world.getTickIndex() % 10 == 0) {
             
-            Point prev = new Point((int)previousWaypoint.x/POTENTIAL_GRID_COL_SIZE,(int)previousWaypoint.y/POTENTIAL_GRID_COL_SIZE);
-            Point next = new Point((int)nextWaypoint.x/POTENTIAL_GRID_COL_SIZE,(int)nextWaypoint.y/POTENTIAL_GRID_COL_SIZE);
+            Point prev = convert2DToPoint(previousWaypoint); 
+            Point next = convert2DToPoint(nextWaypoint);
             
             lanePotentialGrid = new double[POTENTIAL_GRID_SIZE][POTENTIAL_GRID_SIZE];
-            
+//            
             for (int x = StrictMath.max(next.x-20,0); x < StrictMath.min(next.x+20,POTENTIAL_GRID_SIZE); x++) {
                 for (int y = StrictMath.max(next.y-20,0); y < StrictMath.min(next.y+20,POTENTIAL_GRID_SIZE); y++) {
                     double dist = next.getDistanceTo(x, y);
                     lanePotentialGrid[x][y] = (30.0 - dist);
                 }
             }
+            double prevKoeff = self.getMaxLife()/self.getLife();
             for (int x = StrictMath.max(prev.x-20,0); x < StrictMath.min(prev.x+20,POTENTIAL_GRID_SIZE); x++) {
                 for (int y = StrictMath.max(prev.y-20,0); y < StrictMath.min(prev.y+20,POTENTIAL_GRID_SIZE); y++) {
-                    double dist = next.getDistanceTo(x, y);
-                    lanePotentialGrid[x][y] += (60.0 - dist);
+                    double dist = prev.getDistanceTo(x, y);
+                    lanePotentialGrid[x][y] += (30.0 - dist)*prevKoeff;
                 }
             }
         }
@@ -1233,20 +1250,20 @@ public final class MyStrategy implements Strategy {
         for (int x = startX; x <= endX; x++) {
             for (int y = startY; y <= endY; y++) {
                 potentialGrid[x][y] = 0.0;
-//                double max = -Double.MAX_VALUE;
+                double max = -Double.MAX_VALUE;
                 for (PotentialField field : fields) {
                     double value = field.getValue(x, y);
-//                    if (value > 0)  {
-//                        if (value > max) {
-//                            max = value;
-//                        }
-//                    } else {
+                    if (value > 0)  {
+                        if (value > max) {
+                            max = value;
+                        }
+                    } else {
                         potentialGrid[x][y] += value;
-//                    }
+                    }
                 }
-//                if (max > -Double.MAX_VALUE+1) {
-//                    potentialGrid[x][y] += max;
-//                }
+                if (max > -Double.MAX_VALUE+1) {
+                    potentialGrid[x][y] += max;
+                }
                 
                 potentialGrid[x][y] += staticPotentialGrid[x][y];
                 potentialGrid[x][y] += treesPotentialGrid[x][y];
