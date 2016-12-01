@@ -354,13 +354,25 @@ public final class MyStrategy implements Strategy {
         if (enemyBuildings.stream().anyMatch((building) -> (self.getDistanceTo(building) <= building.getAttackRange()+self.getRadius()))) {
             return true;
         }
-        if (enemyMinions.stream().anyMatch((minion) -> (self.getDistanceTo(minion) <= StrictMath.max(self.getCastRange(), self.getVisionRange())))) {
+        if (enemyMinions.stream().anyMatch((minion) -> (self.getDistanceTo(minion) <= StrictMath.max(self.getCastRange()+minion.getRadius(), getMinionattackRange(minion)+self.getRadius())))) {
             return true;
         }        
-        if (enemyWizards.stream().anyMatch((wizard) -> (self.getDistanceTo(wizard) <= StrictMath.max(self.getCastRange(), wizard.getCastRange())))) {
+        if (enemyWizards.stream().anyMatch((wizard) -> (self.getDistanceTo(wizard) <= StrictMath.max(self.getCastRange(), wizard.getCastRange())+game.getWizardRadius()))) {
             return true;
         }
         return false;
+    }
+    
+    private double getMinionattackRange(Minion minion)
+    {
+        switch (minion.getType()) {
+            case ORC_WOODCUTTER:
+                return game.getOrcWoodcutterAttackRange();
+            case FETISH_BLOWDART:
+                return game.getFetishBlowdartAttackRange();
+        }
+        
+        return 0.0;
     }
     
     private LivingUnit getNearestEnemy()
@@ -369,9 +381,7 @@ public final class MyStrategy implements Strategy {
         LivingUnit nearestUnit = null;
         
         List<LivingUnit> enemies = new ArrayList<>();
-        Arrays.asList(world.getWizards()).stream().filter((wizard) -> (wizard.getFaction() == enemyFaction)).forEach((wizard) -> {
-            enemies.add(wizard);
-        });
+        Arrays.asList(world.getWizards()).stream().filter((wizard) -> (wizard.getFaction() == enemyFaction)).forEach(enemies::add);
         enemies.addAll(enemyMinions);
         enemies.addAll(enemyBuildings);
         
