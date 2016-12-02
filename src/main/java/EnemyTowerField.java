@@ -33,7 +33,7 @@ public class EnemyTowerField extends PotentialField {
         
         if (distance < building.getRadius() + colSize) {
             return -200.0;
-        } else if (distance > maxCastDist + colSize) {
+        } else if (distance > maxCastDist + colSize*2) {
             if (distance > maxCastDist*2 + colSize) {
                 return 0.0;
             } else {
@@ -41,7 +41,7 @@ public class EnemyTowerField extends PotentialField {
             }
         } else {
             double value = -100.0;
-            double cooldownFactor = buildingRemainingTicks < 30 ? (double)(30-buildingRemainingTicks)/30.0 : 0.0;
+            double cooldownFactor = buildingRemainingTicks < 50 ? (double)(50-buildingRemainingTicks)/30.0 : 0.0;
             value *= cooldownFactor;
             
             double selfCastRange = self.getCastRange() + building.getRadius() + MyStrategy.game.getMagicMissileRadius();

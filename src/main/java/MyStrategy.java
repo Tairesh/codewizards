@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.Collections;
 import javafx.util.Pair;
 import model.*;
 
@@ -262,7 +263,9 @@ public final class MyStrategy implements Strategy {
             
             double distance = self.getDistanceTo(bestTarget);
             double selfPotential = potentialGrid[selfPoint.x][selfPoint.y];
-            if (selfPotential < PSEUDO_SAFE_POTENTIAL || self.getLife() < 0.35*self.getMaxLife()) {
+            if (isCurrentLaneToBonus()) {
+                targetPoint2D = getPathPointToTarget(nextWaypoint);
+            } else if (selfPotential < PSEUDO_SAFE_POTENTIAL || self.getLife() < 0.3*self.getMaxLife()) {
                 Point safe = getNearestPseudoSafePoint();
                 if (safe != null) {
                     targetPoint2D = getPathPointToTarget(safe);
@@ -270,11 +273,9 @@ public final class MyStrategy implements Strategy {
                     targetPoint2D = new Point2D(self);
                     targetPoint2D.add(new Vector2D(-10.0, self.getAngle()));
                 }
-            } else if (self.getLife() < 0.35*self.getMaxLife() || (self.getLife() < 0.85*self.getMaxLife() && potentialGrid[selfPoint.x][selfPoint.y] < 0)) {
+            } else if (self.getLife() < 0.5*self.getMaxLife() || (self.getLife() < 0.8*self.getMaxLife() && potentialGrid[selfPoint.x][selfPoint.y] < 0)) {
                 debug.line(self.getX(), self.getY(), previousWaypoint.x, previousWaypoint.y, Color.MAGENTA);
                 targetPoint2D = getPathPointToTarget(previousWaypoint);
-            } else if (isCurrentLaneToBonus()) {
-                targetPoint2D = getPathPointToTarget(nextWaypoint);
             } else if (distance > self.getCastRange() && self.getRemainingActionCooldownTicks() < 10) { // идти к врагу если он далеко
                 targetPoint2D = getPathPointToTarget(Point2D.pointBetween(self, bestTarget));
             } else {
@@ -330,7 +331,8 @@ public final class MyStrategy implements Strategy {
     {
         if (isCrossing(targetPoint2D)) {
             List<Point> path = pathFinder.getPath(selfPoint, convert2DToPoint(targetPoint2D));
-            if (null != path && path.size() > 0) {
+            Point2D point2D = null;
+            if (null != path && path.size() > 1) {
                 if (debugEnabled) {
                     Point tmp = path.get(0);
                     for (Point point : path) {
@@ -338,13 +340,51 @@ public final class MyStrategy implements Strategy {
                         tmp = point;
                     }
                 }
+                for (Point p : path) {
+                    Point2D p2d = convertPointTo2D(p);
+                    if (isCrossing(p2d)) {
+                        break;
+                    }
+                    point2D = p2d;
+                }
                 
-                return convertPointTo2D(path.get(path.size() > 1 ? 1 : 0));
+                if (point2D != null)
+                    return point2D;
             }
+            point2D = new Point2D(self.getX(), self.getY());
+            point2D.add(new Vector2D(self.getRadius()+5.0, MyMath.normalizeAngle(self.getAngle() + self.getAngleTo(targetPoint2D.x, targetPoint2D.y))));
+            if (isCrossing(point2D)) {
+                point2D = getNearestUnblockedPoint2D();
+            }
+            return point2D;
         }
         return targetPoint2D;
     }
     
+    private Point getNearestUnblockedPoint()
+    {
+        List<Point> list = new ArrayList<>(120);
+        for (int i = StrictMath.max(selfPoint.x-5, 0); i < StrictMath.min(selfPoint.x+5, POTENTIAL_GRID_SIZE); i++) {
+            for (int j = StrictMath.max(selfPoint.y-5, 0); j < StrictMath.min(selfPoint.y+5, POTENTIAL_GRID_SIZE); j++) {
+                if (!PathFinder.blocked[i][j]) {
+                    list.add(new Point(i, j));
+                }
+            }
+        }
+
+        return Collections.min(list, (o1, o2) -> {
+            double distance1 = selfPoint.getDistanceTo(o1);
+            double distance2 = selfPoint.getDistanceTo(o2);
+            if (distance1 == distance2) return 0;
+            else return distance1 < distance2 ? -1 : 1;
+        });
+    }
+    
+    private Point2D getNearestUnblockedPoint2D()
+    {
+        return convertPointTo2D(getNearestUnblockedPoint());
+    }
+
     private Point2D getPathPointToTarget(Point targetPoint)
     {
         return getPathPointToTarget(convertPointTo2D(targetPoint));
@@ -821,6 +861,18 @@ public final class MyStrategy implements Strategy {
     private void updateBlockedTiles()
     {
         PathFinder.blocked = new boolean[POTENTIAL_GRID_SIZE][POTENTIAL_GRID_SIZE];
+        for (int i = 0; i < POTENTIAL_GRID_SIZE; i++) {
+            int distance = 0;
+            int j = 0;
+            while(distance <= self.getRadius()) {
+                PathFinder.blocked[i][j] = true;
+                PathFinder.blocked[j][i] = true;
+                PathFinder.blocked[i][POTENTIAL_GRID_SIZE-1-j] = true;
+                PathFinder.blocked[POTENTIAL_GRID_SIZE-1-j][i] = true;
+                distance += POTENTIAL_GRID_COL_SIZE;
+                j++;
+            }
+        }
         allUnitsWithoutTrees.stream().forEach((unit) -> {
             blockTilesByUnit(unit);
         });
@@ -840,10 +892,10 @@ public final class MyStrategy implements Strategy {
     private void blockTilesByUnit(LivingUnit unit, boolean isTree)
     {
         Point unitPoint = convert2DToPoint(new Point2D(unit));
-        double r = StrictMath.ceil((unit.getRadius()+self.getRadius())/POTENTIAL_GRID_COL_SIZE)+1;
+        double r = unit.getRadius()+self.getRadius()+1.0;
         for (int i = StrictMath.max(unitPoint.x-(int)r,0); i <= StrictMath.min(unitPoint.x+(int)r,POTENTIAL_GRID_SIZE-1); i++) {
             for (int j = StrictMath.max(unitPoint.y-(int)r,0); j <= StrictMath.min(unitPoint.y+(int)r,POTENTIAL_GRID_SIZE-1); j++) {
-                if (unitPoint.getDistanceTo(i, j) < r) {
+                if (unitPoint.getDistanceTo(i, j)*POTENTIAL_GRID_COL_SIZE < r) {
                     if (isTree) {
                         PathFinder.treesBlocked[i][j] = true;
                     } else {
@@ -1389,7 +1441,7 @@ public final class MyStrategy implements Strategy {
     private boolean isCrossing(Point2D point)
     {
         LineSegment2D segment = new LineSegment2D(self.getX(), self.getY(), point.x, point.y);
-        Vector2D vector = new Vector2D(self.getRadius()+1.0, MyMath.normalizeAngle(self.getAngle()+self.getAngleTo(point.x, point.y)-StrictMath.PI/2.0));
+        Vector2D vector = new Vector2D(self.getRadius(), MyMath.normalizeAngle(self.getAngle()+self.getAngleTo(point.x, point.y)-StrictMath.PI/2.0));
         LineSegment2D segmentLeft = segment.copy().add(vector);
         vector.rotate(StrictMath.PI);
         LineSegment2D segmentRight = segment.copy().add(vector);
@@ -1415,7 +1467,7 @@ public final class MyStrategy implements Strategy {
     private boolean isCrossingTree(LivingUnit unit)
     {
         LineSegment2D segment = new LineSegment2D(self.getX(), self.getY(), unit.getX(), unit.getY());
-        Vector2D vector = new Vector2D(game.getMagicMissileRadius()+1.0, MyMath.normalizeAngle(self.getAngle()+self.getAngleTo(unit.getX(), unit.getY())-StrictMath.PI/2.0));
+        Vector2D vector = new Vector2D(game.getMagicMissileRadius(), MyMath.normalizeAngle(self.getAngle()+self.getAngleTo(unit.getX(), unit.getY())-StrictMath.PI/2.0));
         LineSegment2D segmentLeft = segment.copy().add(vector);
         vector.rotate(StrictMath.PI);
         LineSegment2D segmentRight = segment.copy().add(vector);
