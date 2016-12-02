@@ -20,7 +20,7 @@ public class EnemyTowerField extends PotentialField {
         this.center = new Point((int) building.getX() / MyStrategy.POTENTIAL_GRID_COL_SIZE, (int) building.getY() / MyStrategy.POTENTIAL_GRID_COL_SIZE);
         this.self = self;
         
-        maxCastDist = building.getAttackRange() + self.getRadius();
+        maxCastDist = building.getAttackRange() + self.getRadius() + MyStrategy.POTENTIAL_GRID_COL_SIZE;
         selfRemainingTicks = StrictMath.max(self.getRemainingCooldownTicksByAction()[ActionType.MAGIC_MISSILE.ordinal()], self.getRemainingActionCooldownTicks());
         buildingRemainingTicks = building.getRemainingActionCooldownTicks();
     }
@@ -41,7 +41,7 @@ public class EnemyTowerField extends PotentialField {
             }
         } else {
             double value = -100.0;
-            double cooldownFactor = buildingRemainingTicks < 30 ? (double)(30-buildingRemainingTicks)/30.0 : 0.0;
+            double cooldownFactor = buildingRemainingTicks < 50 ? (double)(50-buildingRemainingTicks)/50.0 : 0.0;
             value *= cooldownFactor;
             
             double selfCastRange = self.getCastRange() + building.getRadius() + MyStrategy.game.getMagicMissileRadius();
