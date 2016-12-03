@@ -13,8 +13,8 @@ import model.*;
 
 public final class MyStrategy implements Strategy {
     
-    private final IVisualClient debug = new EmptyVisualClient();
-    private final boolean debugEnabled = false;
+    private final IVisualClient debug = new VisualClient();
+    private final boolean debugEnabled = true;
     private final PathFinder pathFinder = PathFinder.getInstance();
     private final GlobalMap globalMap = GlobalMap.getInstance();
     private Random random;
@@ -26,7 +26,7 @@ public final class MyStrategy implements Strategy {
     
     private static final double PSEUDO_SAFE_POTENTIAL = -300.0;
     
-    public static final int POTENTIAL_GRID_COL_SIZE = 40;
+    public static final int POTENTIAL_GRID_COL_SIZE = 25;
     public static int POTENTIAL_GRID_SIZE;
     public static double[][] potentialGrid;
     private double[][] staticPotentialGrid;
@@ -340,6 +340,7 @@ public final class MyStrategy implements Strategy {
                         tmp = point;
                     }
                 }
+                path.remove(0);
                 for (Point p : path) {
                     Point2D p2d = convertPointTo2D(p);
                     if (isCrossing(p2d)) {
@@ -709,15 +710,6 @@ public final class MyStrategy implements Strategy {
                 }
                 value -= 10.0 - (10.0 / POTENTIAL_GRID_SIZE);
             }
-//            for (Building building : world.getBuildings()) {
-//                Point point = new Point((int)building.getX()/POTENTIAL_GRID_COL_SIZE,(int)building.getY()/POTENTIAL_GRID_COL_SIZE);
-//                int r = ((int)building.getRadius()/POTENTIAL_GRID_COL_SIZE)+1;
-//                for (int x = StrictMath.max(point.x-r, 0);x<StrictMath.min(point.x+r,POTENTIAL_GRID_SIZE);x++) {
-//                    for (int y = StrictMath.max(point.y-r, 0);y<StrictMath.min(point.y+r,POTENTIAL_GRID_SIZE);y++) {
-//                        staticPotentialGrid[x][y] = -400.0;
-//                    }
-//                }
-//            }
                                     
             enemyFaction = self.getFaction() == Faction.ACADEMY ? Faction.RENEGADES : Faction.ACADEMY;
             fakeBuildings = new Building[]{
@@ -895,7 +887,7 @@ public final class MyStrategy implements Strategy {
         double r = unit.getRadius()+self.getRadius()+1.0;
         for (int i = StrictMath.max(unitPoint.x-(int)r,0); i <= StrictMath.min(unitPoint.x+(int)r,POTENTIAL_GRID_SIZE-1); i++) {
             for (int j = StrictMath.max(unitPoint.y-(int)r,0); j <= StrictMath.min(unitPoint.y+(int)r,POTENTIAL_GRID_SIZE-1); j++) {
-                if (unitPoint.getDistanceTo(i, j)*POTENTIAL_GRID_COL_SIZE < r) {
+                if ((unitPoint.getDistanceTo(i, j)-0.5)*POTENTIAL_GRID_COL_SIZE < r) {
                     if (isTree) {
                         PathFinder.treesBlocked[i][j] = true;
                     } else {
