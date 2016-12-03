@@ -13,8 +13,8 @@ import model.*;
 
 public final class MyStrategy implements Strategy {
     
-    private final IVisualClient debug = new VisualClient();
-    private final boolean debugEnabled = true;
+    private final IVisualClient debug = new EmptyVisualClient();
+    private final boolean debugEnabled = false;
     private final PathFinder pathFinder = PathFinder.getInstance();
     private final GlobalMap globalMap = GlobalMap.getInstance();
     private Random random;
@@ -263,7 +263,7 @@ public final class MyStrategy implements Strategy {
             
             double distance = self.getDistanceTo(bestTarget);
             double selfPotential = potentialGrid[selfPoint.x][selfPoint.y];
-            if (isCurrentLaneToBonus()) {
+            if (isCurrentLaneToBonus() && self.getLife() > 0.5*self.getMaxLife()) {
                 targetPoint2D = getPathPointToTarget(nextWaypoint);
             } else if (selfPotential < PSEUDO_SAFE_POTENTIAL || self.getLife() < 0.3*self.getMaxLife()) {
                 Point safe = getNearestPseudoSafePoint();
@@ -588,7 +588,7 @@ public final class MyStrategy implements Strategy {
         
         if (coords[0] >=0 && coords[1] >= 0) {
             return new Point(coords[0], coords[1]);
-            }
+        }
                 
         return null;
     }
@@ -769,7 +769,8 @@ public final class MyStrategy implements Strategy {
                 
         changeLaneToBest();
         ticksToNextBonus = game.getBonusAppearanceIntervalTicks() - (world.getTickIndex() % game.getBonusAppearanceIntervalTicks()) - 1;
-        if (ticksToNextBonus < 500) {
+        checkBonuses();
+        if (ticksToNextBonus < 500 || bonus1 || bonus2) {
             double bonusTimeFactor = 1.0/3.5;
             if (ticksToNextBonus < bonusPoint1.getDistanceTo(self)/bonusTimeFactor || bonus1) {
                 changeLaneToBonus1();
@@ -777,7 +778,6 @@ public final class MyStrategy implements Strategy {
                 changeLaneToBonus2();
             }
         }
-        checkBonuses();
         checkLane();
         
         checkBulletsCache();
@@ -1049,26 +1049,6 @@ public final class MyStrategy implements Strategy {
             case ENEMYBASE_TO_MIDDLE_BONUS2:
                 lane = FakeLaneType.BONUS2_TO_MIDDLE;
                 break;
-//            case ENEMYBASE_TO_TOP_BONUS1:
-//            case TOP_TO_BONUS1:
-//            case MIDDLE_TO_BONUS1:
-//            case ENEMYBASE_TO_MIDDLE_BONUS1:
-//                if (getBestLane() == FakeLaneType.TOP) {
-//                    lane = FakeLaneType.BONUS1_TO_TOP;
-//                } else {
-//                    lane = FakeLaneType.BONUS1_TO_MIDDLE;
-//                }
-//                break;
-//            case ENEMYBASE_TO_BOTTOM_BONUS2:
-//            case BOTTOM_TO_BONUS2:                
-//            case MIDDLE_TO_BONUS2:
-//            case ENEMYBASE_TO_MIDDLE_BONUS2:
-//                if (getBestLane() == FakeLaneType.BOTTOM) {
-//                    lane = FakeLaneType.BONUS2_TO_BOTTOM;
-//                } else {
-//                    lane = FakeLaneType.BONUS2_TO_MIDDLE;
-//                }
-//                break;
         }
     }
     
@@ -1167,9 +1147,7 @@ public final class MyStrategy implements Strategy {
             case MIDDLE:
             case BONUS1_TO_MIDDLE:
             case BONUS2_TO_MIDDLE:
-                if (bonusPoint1.getDistanceTo(self) < bonusPoint2.getDistanceTo(self)) {
-                    lane = (self.getX() > 3000.0 && self.getY() < game.getMapSize() - 3000.0) ? FakeLaneType.ENEMYBASE_TO_MIDDLE_BONUS1 : FakeLaneType.MIDDLE_TO_BONUS1;
-                }
+                lane = (self.getX() > 3000.0 && self.getY() < game.getMapSize() - 3000.0) ? FakeLaneType.ENEMYBASE_TO_MIDDLE_BONUS1 : FakeLaneType.MIDDLE_TO_BONUS1;
                 break;
         }
     }
@@ -1188,9 +1166,7 @@ public final class MyStrategy implements Strategy {
             case MIDDLE:
             case BONUS1_TO_MIDDLE:
             case BONUS2_TO_MIDDLE:
-                if (bonusPoint2.getDistanceTo(self) < bonusPoint1.getDistanceTo(self)) {
-                    lane = (self.getX() > 3000.0 && self.getY() < game.getMapSize() - 3000.0) ? FakeLaneType.ENEMYBASE_TO_MIDDLE_BONUS2 : FakeLaneType.MIDDLE_TO_BONUS2;                    
-                }
+                lane = (self.getX() > 3000.0 && self.getY() < game.getMapSize() - 3000.0) ? FakeLaneType.ENEMYBASE_TO_MIDDLE_BONUS2 : FakeLaneType.MIDDLE_TO_BONUS2;
                 break;
         }
     }
