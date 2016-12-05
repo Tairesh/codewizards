@@ -1175,7 +1175,7 @@ public final class MyStrategy implements Strategy {
             case TOP:
             case BONUS1_TO_TOP:
                 if (self.getX() > 3000.0) {
-                    lane = FakeLaneType.ENEMYBASE_TO_TOP_BONUS1;
+//                    lane = FakeLaneType.ENEMYBASE_TO_TOP_BONUS1;
                 } else {
                     lane = FakeLaneType.TOP_TO_BONUS1;
                 }
@@ -1183,7 +1183,11 @@ public final class MyStrategy implements Strategy {
             case MIDDLE:
             case BONUS1_TO_MIDDLE:
             case BONUS2_TO_MIDDLE:
-                lane = (self.getX() > 3000.0 && self.getY() < game.getMapSize() - 3000.0) ? FakeLaneType.ENEMYBASE_TO_MIDDLE_BONUS1 : FakeLaneType.MIDDLE_TO_BONUS1;
+                if (self.getX() > 3000.0 && self.getY() < game.getMapSize() - 3000.0) {
+//                    lane = FakeLaneType.ENEMYBASE_TO_MIDDLE_BONUS1;
+                } else {
+                    lane = FakeLaneType.MIDDLE_TO_BONUS1;
+                }
                 break;
         }
     }
@@ -1194,7 +1198,7 @@ public final class MyStrategy implements Strategy {
             case BOTTOM:
             case BONUS2_TO_BOTTOM:
                 if (self.getY() < game.getMapSize() - 3000.0) {
-                    lane = FakeLaneType.ENEMYBASE_TO_BOTTOM_BONUS2;
+//                    lane = FakeLaneType.ENEMYBASE_TO_BOTTOM_BONUS2;
                 } else {
                     lane = FakeLaneType.BOTTOM_TO_BONUS2;
                 }
@@ -1202,7 +1206,11 @@ public final class MyStrategy implements Strategy {
             case MIDDLE:
             case BONUS1_TO_MIDDLE:
             case BONUS2_TO_MIDDLE:
-                lane = (self.getX() > 3000.0 && self.getY() < game.getMapSize() - 3000.0) ? FakeLaneType.ENEMYBASE_TO_MIDDLE_BONUS2 : FakeLaneType.MIDDLE_TO_BONUS2;
+                if (self.getX() > 3000.0 && self.getY() < game.getMapSize() - 3000.0) {
+//                    lane = FakeLaneType.ENEMYBASE_TO_MIDDLE_BONUS2;
+                } else {
+                    lane = FakeLaneType.MIDDLE_TO_BONUS2;
+                }
                 break;
         }
     }
