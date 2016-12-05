@@ -13,7 +13,7 @@ import model.*;
 
 public final class MyStrategy implements Strategy {
     
-    private final IVisualClient debug = new VisualClient();
+    private final IVisualClient debug = new EmptyVisualClient();
     private final boolean debugEnabled = false;
     private final PathFinder pathFinder = PathFinder.getInstance();
     private final GlobalMap globalMap = GlobalMap.getInstance();
@@ -171,7 +171,7 @@ public final class MyStrategy implements Strategy {
             double minDist = Double.MAX_VALUE;
             for (Tree tree : world.getTrees()) {
                 double distance = self.getDistanceTo(tree);
-                if (distance < minDist && distance < self.getRadius() + tree.getRadius() + 10.0) {
+                if (distance < minDist && distance < self.getRadius() + tree.getRadius() + POTENTIAL_GRID_COL_SIZE) {
                     nearestTree = tree;
                     minDist = distance;
                 }
