@@ -771,7 +771,7 @@ public final class MyStrategy implements Strategy {
         ticksToNextBonus = game.getBonusAppearanceIntervalTicks() - (world.getTickIndex() % game.getBonusAppearanceIntervalTicks()) - 1;
         checkBonuses();
         if (ticksToNextBonus < 500 || bonus1 || bonus2) {
-            double bonusTimeFactor = 1.0/3.5;
+            double bonusTimeFactor = 2.5;
             if (ticksToNextBonus < bonusPoint1.getDistanceTo(self)/bonusTimeFactor || bonus1) {
                 changeLaneToBonus1();
             } else if (ticksToNextBonus < bonusPoint2.getDistanceTo(self)/bonusTimeFactor || bonus2) {
