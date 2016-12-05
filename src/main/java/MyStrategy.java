@@ -231,7 +231,7 @@ public final class MyStrategy implements Strategy {
                     && !isTargetFrozen
 //                    && bestTargetScore >= 100
                     && bestTarget.getLife() > game.getFrostBoltDirectDamage()
-                    && bestTarget.getClass() == Wizard.class) {
+                    && (bestTarget.getClass() == Wizard.class || (bestTarget.getClass() == Minion.class && distance < 100.0))) {
                 move.setAction(ActionType.FROST_BOLT);
                 move.setMinCastDistance(distance-bestTarget.getRadius()-game.getFrostBoltRadius());
             } else if (canThrowMissile
@@ -309,8 +309,12 @@ public final class MyStrategy implements Strategy {
             Point2D pseudoNextWaypoint = new Point2D(self);
             pseudoNextWaypoint.add(new Vector2D(500, MyMath.normalizeAngle(self.getAngle() + self.getAngleTo(nextWaypoint.x, nextWaypoint.y))));
             Point pnwp = convert2DToPoint(pseudoNextWaypoint);
-            if (PathFinder.blocked[pnwp.x][pnwp.y]) {
-                return nextWaypoint;
+            while (PathFinder.blocked[pnwp.x][pnwp.y]) {
+                pseudoNextWaypoint.add(new Vector2D(-100.0, MyMath.normalizeAngle(self.getAngle() + self.getAngleTo(nextWaypoint.x, nextWaypoint.y))));
+                pnwp = convert2DToPoint(pseudoNextWaypoint);
+                if (pseudoNextWaypoint.getDistanceTo(self) < 200.0) {
+                    return nextWaypoint;
+                }
             }
             return pseudoNextWaypoint;
         }
@@ -367,7 +371,7 @@ public final class MyStrategy implements Strategy {
         List<Point> list = new ArrayList<>(120);
         for (int i = StrictMath.max(selfPoint.x-5, 0); i < StrictMath.min(selfPoint.x+5, POTENTIAL_GRID_SIZE); i++) {
             for (int j = StrictMath.max(selfPoint.y-5, 0); j < StrictMath.min(selfPoint.y+5, POTENTIAL_GRID_SIZE); j++) {
-                if (!PathFinder.blocked[i][j]) {
+                if (!PathFinder.blocked[i][j] && selfPoint.getDistanceTo(i, j) > 1.9) {
                     list.add(new Point(i, j));
                 }
             }
@@ -769,6 +773,9 @@ public final class MyStrategy implements Strategy {
                 
         changeLaneToBest();
         ticksToNextBonus = game.getBonusAppearanceIntervalTicks() - (world.getTickIndex() % game.getBonusAppearanceIntervalTicks()) - 1;
+        if (game.getTickCount() - world.getTickIndex() < game.getBonusAppearanceIntervalTicks() / 2.0) {
+            ticksToNextBonus = Integer.MAX_VALUE;
+        }
         checkBonuses();
         if (ticksToNextBonus < 500 || bonus1 || bonus2) {
             double bonusTimeFactor = 2.5;
