@@ -13,7 +13,7 @@ import model.*;
 
 public final class MyStrategy implements Strategy {
     
-    private final IVisualClient debug = new EmptyVisualClient();
+    private final IVisualClient debug = new VisualClient();
     private final boolean debugEnabled = false;
     private final PathFinder pathFinder = PathFinder.getInstance();
     private final GlobalMap globalMap = GlobalMap.getInstance();
@@ -36,9 +36,11 @@ public final class MyStrategy implements Strategy {
     private Faction enemyFaction;
     
     private final boolean[] buildingsDestroyed = {
+    //    м1     м2     т1     т2     б1     б2   трон
         false, false, false, false, false, false, false
     };    
     private Building[] fakeBuildings;
+    private final Set<Long> secondTowers = new HashSet<>(6);
     private Wizard[] fakeWizards;
     private final Set<Long> neutralMinionsInAgre  = new HashSet<>(10);
     
@@ -76,7 +78,7 @@ public final class MyStrategy implements Strategy {
     {
         initStrategy(self, world, game, move);
         initTick(self, world, game, move);
-
+        
         if (debugEnabled) {
             debug.beginPost();
             debug.fillRect(self.getX()-1.0, self.getY()+self.getRadius()-1.0, self.getX()+200.0, self.getY()+self.getRadius()+66.0, Color.WHITE);
@@ -90,7 +92,7 @@ public final class MyStrategy implements Strategy {
               
         walk();
         shoot();
-        
+                
         if (debugEnabled) {
             debug.endPost();
             debug.beginPre();
@@ -126,6 +128,28 @@ public final class MyStrategy implements Strategy {
             debug.endPre();
         }
         
+    }
+    
+    private boolean isSecondTower(Building building)
+    {
+        return secondTowers.contains(building.getId());
+    }
+    
+    private boolean isUndeadable(Building building)
+    {
+        if (!isSecondTower(building)) {
+            return false;
+        }
+        if (fakeBuildings[1].getDistanceTo(building) < 10.0) {
+            return buildingsDestroyed[0];
+        }
+        if (fakeBuildings[3].getDistanceTo(building) < 10.0) {
+            return buildingsDestroyed[2];
+        }
+        if (fakeBuildings[5].getDistanceTo(building) < 10.0) {
+            return buildingsDestroyed[4];
+        }
+        return false;
     }
     
     private void shoot()
@@ -371,7 +395,7 @@ public final class MyStrategy implements Strategy {
         List<Point> list = new ArrayList<>(120);
         for (int i = StrictMath.max(selfPoint.x-5, 0); i < StrictMath.min(selfPoint.x+5, POTENTIAL_GRID_SIZE); i++) {
             for (int j = StrictMath.max(selfPoint.y-5, 0); j < StrictMath.min(selfPoint.y+5, POTENTIAL_GRID_SIZE); j++) {
-                if (!PathFinder.blocked[i][j] && selfPoint.getDistanceTo(i, j) > 1.9) {
+                if (!PathFinder.blocked[i][j]/* && selfPoint.getDistanceTo(i, j) > 1.9*/) {
                     list.add(new Point(i, j));
                 }
             }
@@ -461,9 +485,7 @@ public final class MyStrategy implements Strategy {
         LivingUnit bestTarget = null;
         
         List<LivingUnit> enemies = new ArrayList<>();
-        Arrays.asList(world.getWizards()).stream().filter((wizard) -> (wizard.getFaction() == enemyFaction)).forEach((wizard) -> {
-            enemies.add(wizard);
-        });
+        enemies.addAll(enemyWizards);
         enemies.addAll(enemyMinions);
         enemies.addAll(enemyBuildings);
         
@@ -489,15 +511,15 @@ public final class MyStrategy implements Strategy {
             } else if (unit.getClass() == Minion.class) {
                 switch (((Minion)unit).getType()) {
                     case ORC_WOODCUTTER:
-                        if (unit.getDistanceTo(self)+self.getRadius() < game.getOrcWoodcutterAttackRange()*2.0 && unit.getAngleTo(self) <= game.getOrcWoodcutterAttackSector()/2.0) {
+                        if (unit.getDistanceTo(self)+self.getRadius() < game.getOrcWoodcutterAttackRange()*2.0 /*&& unit.getAngleTo(self) <= game.getOrcWoodcutterAttackSector()/2.0*/) {
                             score += 100;
                         }
                         break;
-                    case FETISH_BLOWDART:
-                        if (unit.getDistanceTo(self)+self.getRadius() < game.getFetishBlowdartAttackRange()*1.5 && unit.getAngleTo(self) <= game.getFetishBlowdartAttackSector()/2.0) {
-                            score += 100;
-                        }
-                        break;
+//                    case FETISH_BLOWDART:
+//                        if (unit.getDistanceTo(self)+self.getRadius() < game.getFetishBlowdartAttackRange()*1.5 && unit.getAngleTo(self) <= game.getFetishBlowdartAttackSector()/2.0) {
+//                            score += 100;
+//                        }
+//                        break;
                 }
             }
             
@@ -725,6 +747,13 @@ public final class MyStrategy implements Strategy {
                 new Building(124215, 3950.0, 1306.7422221916638, 0, 0, 0, enemyFaction,game.getGuardianTowerRadius(),(int)StrictMath.round(game.getGuardianTowerLife()),(int)StrictMath.round(game.getGuardianTowerLife()), self.getStatuses(),BuildingType.GUARDIAN_TOWER,game.getGuardianTowerVisionRange(),game.getGuardianTowerAttackRange(),game.getGuardianTowerDamage(),0,0),
                 new Building(124215, 3600.0, 400.0, 0, 0, 0, enemyFaction,game.getFactionBaseRadius(),(int)StrictMath.round(game.getFactionBaseLife()),(int)StrictMath.round(game.getFactionBaseLife()), self.getStatuses(),BuildingType.FACTION_BASE,game.getFactionBaseVisionRange(),game.getFactionBaseAttackRange(),game.getFactionBaseDamage(),0,0),
             };
+          
+            secondTowers.add(15L);
+            secondTowers.add(16L);
+            secondTowers.add(18L);
+            secondTowers.add(20L);
+            secondTowers.add(22L);
+            secondTowers.add(24L);
             
             fakeWizards = (self.getId() < 6) ? new Wizard[]{
                 new Wizard(6, 3700, 300, 0, 0, 0, enemyFaction, game.getWizardRadius(), game.getWizardBaseLife(), game.getWizardBaseLife(), new Status[]{}, 12345, false, game.getWizardBaseMana(), game.getWizardBaseMana(), game.getWizardVisionRange(), game.getWizardCastRange(), 0, 1, new SkillType[]{}, 0, new int[]{0,0,0,0,0}, false, new Message[]{}),
@@ -1335,7 +1364,7 @@ public final class MyStrategy implements Strategy {
     private List<Building> getEnemyBuildings()
     {
         
-        List<Building> buildings = new ArrayList();        
+        List<Building> buildings = new ArrayList<>(7);        
         for (Building building : world.getBuildings()) {
             if (building.getFaction() != self.getFaction()) {
                 buildings.add(building);
@@ -1378,10 +1407,10 @@ public final class MyStrategy implements Strategy {
         
         for (int i = 0; i < 7; i++) {
             if (!buildingsIn[i] && !buildingsDestroyed[i]) {
-                if (self.getDistanceTo(fakeBuildings[i]) > self.getVisionRange()) {
-                    buildings.add(fakeBuildings[i]);
-                } else {
+                if (anyoneSee(fakeBuildings[i])) {
                     buildingsDestroyed[i] = true;
+                } else {
+                    buildings.add(fakeBuildings[i]);
                 }
             }
         }
