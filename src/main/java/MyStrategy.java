@@ -290,7 +290,7 @@ public final class MyStrategy implements Strategy {
             
             double distance = self.getDistanceTo(bestTarget);
             double selfPotential = potentialGrid[selfPoint.x][selfPoint.y];
-            if (isCurrentLaneToBonus() && self.getLife() > 0.5*self.getMaxLife()) {
+            if (isCurrentLaneToBonus() && self.getLife() > 0.8*self.getMaxLife()) {
                 targetPoint2D = getPathPointToTarget(nextWaypoint);
             } else if (selfPotential < PSEUDO_SAFE_POTENTIAL || self.getLife() < 0.5*self.getMaxLife()) {
                 Point safe = getNearestPseudoSafePoint();
