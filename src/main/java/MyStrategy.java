@@ -152,6 +152,19 @@ public final class MyStrategy implements Strategy {
         return false;
     }
     
+    private boolean isExistNearLifelessTowersOrWizards()
+    {
+        if (enemyWizards.stream().anyMatch((wizard) -> (wizard.getDistanceTo(self) < 600.0 && !isCrossingTree(wizard)))) {
+            return true;
+        }
+        
+        if (enemyBuildings.stream().anyMatch((building) -> (building.getDistanceTo(self) < 600.0 && !isCrossingTree(building)))) {
+            return true;
+        }
+        
+        return false;
+    }
+    
     private void shoot()
     {
         LivingUnit bestTarget = null;
@@ -290,7 +303,7 @@ public final class MyStrategy implements Strategy {
             
             double distance = self.getDistanceTo(bestTarget);
             double selfPotential = potentialGrid[selfPoint.x][selfPoint.y];
-            if (isCurrentLaneToBonus() && self.getLife() > 0.8*self.getMaxLife()) {
+            if (isCurrentLaneToBonus() && self.getLife() > 0.75*self.getMaxLife() && !isExistNearLifelessTowersOrWizards()) {
                 targetPoint2D = getPathPointToTarget(nextWaypoint);
             } else if (selfPotential < PSEUDO_SAFE_POTENTIAL || self.getLife() < 0.5*self.getMaxLife()) {
                 Point safe = getNearestPseudoSafePoint();
@@ -823,7 +836,7 @@ public final class MyStrategy implements Strategy {
             ticksToNextBonus = Integer.MAX_VALUE;
         }
         checkBonuses();
-        if (ticksToNextBonus < 500 || bonus1 || bonus2) {
+        if (ticksToNextBonus < 2000 || bonus1 || bonus2) {
             double bonusTimeFactor = 2.5;
             if (ticksToNextBonus < bonusPoint1.getDistanceTo(self)/bonusTimeFactor || bonus1) {
                 changeLaneToBonus1();
@@ -898,7 +911,7 @@ public final class MyStrategy implements Strategy {
     
     private void changeLaneToBest()
     {
-        if (world.getTickIndex() % 50 == 0 && self.getDistanceTo(400, 3600) < 500.0) {
+        if (world.getTickIndex() % 50 == 0 && self.getDistanceTo(400, 3600) < 700.0) {
             lane = getBestLane();
         }
     }
@@ -1053,7 +1066,7 @@ public final class MyStrategy implements Strategy {
     
     private void checkLane()
     {
-        if (isCurrentLaneToBonus() && ticksToNextBonus >= 500 && ticksToNextBonus < game.getBonusAppearanceIntervalTicks()-2) {
+        if (isCurrentLaneToBonus() && ticksToNextBonus >= 2000 && ticksToNextBonus < game.getBonusAppearanceIntervalTicks()-2) {
             if ((!bonus1 && isCurrentLaneToBonus1()) || (!bonus2 && isCurrentLaneToBonus2())) {
                 changeLaneFromBonus();
             }
