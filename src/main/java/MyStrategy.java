@@ -285,11 +285,14 @@ public final class MyStrategy implements Strategy {
                 bestTarget = fakeBuildings[6];
             }
             
+            int nearAlliesWizardsCount = countNearAlliesWizardsIncludeMe();
+            int nearEnemyWizardsCount = countNearEnemyWizards();
+            
             double distance = self.getDistanceTo(bestTarget);
             double selfPotential = potentialGrid[selfPoint.x][selfPoint.y];
             if (isCurrentLaneToBonus() && self.getLife() > 0.5*self.getMaxLife()) {
                 targetPoint2D = getPathPointToTarget(nextWaypoint);
-            } else if (selfPotential < PSEUDO_SAFE_POTENTIAL || self.getLife() < 0.3*self.getMaxLife()) {
+            } else if (selfPotential < PSEUDO_SAFE_POTENTIAL || self.getLife() < 0.5*self.getMaxLife()) {
                 Point safe = getNearestPseudoSafePoint();
                 if (safe != null) {
                     targetPoint2D = getPathPointToTarget(safe);
@@ -297,10 +300,10 @@ public final class MyStrategy implements Strategy {
                     targetPoint2D = new Point2D(self);
                     targetPoint2D.add(new Vector2D(-10.0, self.getAngle()));
                 }
-            } else if (self.getLife() < 0.5*self.getMaxLife() || (self.getLife() < 0.8*self.getMaxLife() && potentialGrid[selfPoint.x][selfPoint.y] < 0)) {
+            } else if (self.getLife() < 0.8*self.getMaxLife() && nearAlliesWizardsCount < nearEnemyWizardsCount) {
                 debug.line(self.getX(), self.getY(), previousWaypoint.x, previousWaypoint.y, Color.MAGENTA);
                 targetPoint2D = getPathPointToTarget(previousWaypoint);
-            } else if (distance > self.getCastRange() && self.getRemainingActionCooldownTicks() < 10) { // идти к врагу если он далеко
+            } else if (distance > self.getCastRange() && self.getRemainingActionCooldownTicks() < 10 && !isCrossing(bestTarget)) { // идти к врагу если он далеко
                 targetPoint2D = getPathPointToTarget(Point2D.pointBetween(self, bestTarget));
             } else {
                 Point best = getBestPoint();
@@ -325,6 +328,20 @@ public final class MyStrategy implements Strategy {
             move.setStrafeSpeed(vector.getY());
             move.setTurn(angle);
         }
+    }
+    
+    private int countNearAlliesWizardsIncludeMe()
+    {
+        int counter = 0;
+        counter = Arrays.asList(world.getWizards()).stream().filter((wizard) -> (wizard.getFaction() == self.getFaction() && self.getDistanceTo(wizard) < 700.0)).map((_item) -> 1).reduce(counter, Integer::sum);
+        return counter;
+    }
+    
+    private int countNearEnemyWizards()
+    {
+        int counter = 0;
+        counter = Arrays.asList(world.getWizards()).stream().filter((wizard) -> (wizard.getFaction() != self.getFaction() && self.getDistanceTo(wizard) < 700.0)).map((_item) -> 1).reduce(counter, Integer::sum);
+        return counter;
     }
     
     private Point2D getPseudoNextPoint()
@@ -1334,6 +1351,16 @@ public final class MyStrategy implements Strategy {
         Arrays.asList(world.getProjectiles()).stream().filter((bullet) -> (bullet.getFaction() != self.getFaction() && self.getDistanceTo(bullet) < self.getVisionRange()*2.0)).forEach((bullet) -> {
             fields.add(new BulletField(bullet, self));
         });
+        enemyWizards.stream().filter((Wizard wizard) -> (wizard.getDistanceTo(self) < wizard.getCastRange()*1.5 && wizard.getAngleTo(self) < game.getStaffSector()/2.0 && wizard.getRemainingActionCooldownTicks() < 10)).map((Wizard wizard) -> {
+            Point2D bulletPosition = new Point2D(wizard);
+            bulletPosition.add(new Vector2D(game.getMagicMissileSpeed(), MyMath.normalizeAngle(wizard.getAngle()+wizard.getAngleTo(self))));
+            double speedX = bulletPosition.x - wizard.getX();
+            double speedY = bulletPosition.y - wizard.getY();
+            Projectile fakeBullet = new Projectile(100000+random.nextInt(), bulletPosition.x, bulletPosition.y, speedX, speedY, 0, wizard.getFaction(), game.getMagicMissileRadius(), ProjectileType.MAGIC_MISSILE, wizard.getId(), wizard.getOwnerPlayerId());
+            return fakeBullet;
+        }).forEach((Projectile fakeBullet) -> {
+            fields.add(new BulletField(fakeBullet, self));
+        });
         
         int startX = (int)(self.getX()-self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
         int startY = (int)(self.getY()-self.getVisionRange())/POTENTIAL_GRID_COL_SIZE;
@@ -1448,6 +1475,11 @@ public final class MyStrategy implements Strategy {
             }
         }
         return wizards;
+    }
+    
+    private boolean isCrossing(LivingUnit unit)
+    {
+        return isCrossing(new Point2D(unit));
     }
         
     private boolean isCrossing(Point2D point)
