@@ -191,7 +191,7 @@ public final class MyStrategy implements Strategy {
             move.setCastAngle(angle);
             
             boolean inAngle = StrictMath.abs(angle) < game.getStaffSector() / 2.0;
-            boolean inCastRange = distance <= self.getCastRange()/*+bestTarget.getRadius()/*+game.getMagicMissileRadius()*/;
+            boolean inCastRange = distance <= self.getCastRange()+bestTarget.getRadius()/*+game.getMagicMissileRadius()*/;
             
             boolean learnedFrostbolt = false;
             boolean learnedFireball = false;
