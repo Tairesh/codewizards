@@ -154,11 +154,11 @@ public final class MyStrategy implements Strategy {
     
     private boolean isExistNearLifelessTowersOrWizards()
     {
-        if (enemyWizards.stream().anyMatch((wizard) -> (wizard.getDistanceTo(self) < 600.0 && !isCrossingTree(wizard)))) {
+        if (enemyWizards.stream().anyMatch((wizard) -> (wizard.getDistanceTo(self) < 600.0 && wizard.getLife() < wizard.getMaxLife()*0.3 && !isCrossingTree(wizard)))) {
             return true;
         }
         
-        if (enemyBuildings.stream().anyMatch((building) -> (building.getDistanceTo(self) < 600.0 && !isCrossingTree(building)))) {
+        if (enemyBuildings.stream().anyMatch((building) -> (building.getDistanceTo(self) < 600.0 && building.getLife() < building.getMaxLife()*0.3 && !isCrossingTree(building)))) {
             return true;
         }
         
@@ -836,7 +836,7 @@ public final class MyStrategy implements Strategy {
             ticksToNextBonus = Integer.MAX_VALUE;
         }
         checkBonuses();
-        if (ticksToNextBonus < 2000 || bonus1 || bonus2) {
+        if (ticksToNextBonus < 1000 || bonus1 || bonus2) {
             double bonusTimeFactor = 2.5;
             if (ticksToNextBonus < bonusPoint1.getDistanceTo(self)/bonusTimeFactor || bonus1) {
                 changeLaneToBonus1();
@@ -1066,7 +1066,7 @@ public final class MyStrategy implements Strategy {
     
     private void checkLane()
     {
-        if (isCurrentLaneToBonus() && ticksToNextBonus >= 2000 && ticksToNextBonus < game.getBonusAppearanceIntervalTicks()-2) {
+        if (isCurrentLaneToBonus() && ticksToNextBonus >= 1000 && ticksToNextBonus < game.getBonusAppearanceIntervalTicks()-2) {
             if ((!bonus1 && isCurrentLaneToBonus1()) || (!bonus2 && isCurrentLaneToBonus2())) {
                 changeLaneFromBonus();
             }
