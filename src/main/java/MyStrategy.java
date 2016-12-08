@@ -13,8 +13,8 @@ import model.*;
 
 public final class MyStrategy implements Strategy {
     
-    private final IVisualClient debug = new VisualClient();
-    private final boolean debugEnabled = true;
+    private final IVisualClient debug = new EmptyVisualClient();
+    private final boolean debugEnabled = false;
     private final PathFinder pathFinder = PathFinder.getInstance();
     private final GlobalMap globalMap = GlobalMap.getInstance();
     private Random random;
@@ -50,7 +50,7 @@ public final class MyStrategy implements Strategy {
     private List<Minion> enemyMinions; // вместе с нейтралами в агре
     private List<Wizard> enemyWizards; // вместе с фейковыми
     
-    public static final List<LivingUnit> allUnits = new ArrayList<>(500);
+    public static List<LivingUnit> allUnits = new ArrayList<>(500);
     private final List<LivingUnit> allUnitsWithoutTrees = new ArrayList<>(200);
     
     private final List<Wizard> alliesWizards = new ArrayList<>(5);
@@ -107,7 +107,7 @@ public final class MyStrategy implements Strategy {
             endY = (endY >= POTENTIAL_GRID_SIZE) ? POTENTIAL_GRID_SIZE-1 : endY;
             for (int x = startX; x <= endX; x++) {
                 for (int y = startY; y <= endY; y++) {
-                    if (PathFinder.blocked[x][y]) {
+                    if (pathFinder.blocked[x][y]) {
                         debug.fillCircle(x*POTENTIAL_GRID_COL_SIZE, y*POTENTIAL_GRID_COL_SIZE, POTENTIAL_GRID_COL_SIZE/2, Color.DARK_GRAY);
                     } else {
                         debug.fillCircle(x*POTENTIAL_GRID_COL_SIZE, y*POTENTIAL_GRID_COL_SIZE, POTENTIAL_GRID_COL_SIZE/2, debugColor(potentialGrid[x][y]));
@@ -357,7 +357,7 @@ public final class MyStrategy implements Strategy {
     
     private boolean isBlocked(Point point)
     {
-        return PathFinder.blocked[point.x][point.y];
+        return pathFinder.blocked[point.x][point.y];
     }
     
     private Point2D checkForBlocking(Point2D point2D)
@@ -390,7 +390,7 @@ public final class MyStrategy implements Strategy {
             Point2D pseudoNextWaypoint = new Point2D(self);
             pseudoNextWaypoint.add(new Vector2D(500, MyMath.normalizeAngle(self.getAngle() + self.getAngleTo(nextWaypoint.x, nextWaypoint.y))));
             Point pnwp = convert2DToPoint(pseudoNextWaypoint);
-            while (PathFinder.blocked[pnwp.x][pnwp.y]) {
+            while (pathFinder.blocked[pnwp.x][pnwp.y]) {
                 pseudoNextWaypoint.add(new Vector2D(-100.0, MyMath.normalizeAngle(self.getAngle() + self.getAngleTo(nextWaypoint.x, nextWaypoint.y))));
                 pnwp = convert2DToPoint(pseudoNextWaypoint);
                 if (pseudoNextWaypoint.getDistanceTo(self) < 200.0) {
@@ -452,7 +452,7 @@ public final class MyStrategy implements Strategy {
         List<Point> list = new ArrayList<>(120);
         for (int i = StrictMath.max(point.x-5, 0); i < StrictMath.min(point.x+5, POTENTIAL_GRID_SIZE); i++) {
             for (int j = StrictMath.max(point.y-5, 0); j < StrictMath.min(point.y+5, POTENTIAL_GRID_SIZE); j++) {
-                if (!PathFinder.blocked[i][j] && !selfPoint.equals(i, j)) {
+                if (!pathFinder.blocked[i][j] && !selfPoint.equals(i, j)) {
                     list.add(new Point(i, j));
                 }
             }
@@ -668,7 +668,7 @@ public final class MyStrategy implements Strategy {
         endY = (endY >= POTENTIAL_GRID_SIZE) ? POTENTIAL_GRID_SIZE-1 : endY;
         for (int x = startX; x <= endX; x++) {
             for (int y = startY; y <= endY; y++) {
-                if (!PathFinder.blocked[x][y] && potentialGrid[x][y] > PSEUDO_SAFE_POTENTIAL) {
+                if (!pathFinder.blocked[x][y] && potentialGrid[x][y] > PSEUDO_SAFE_POTENTIAL) {
                     double dist = selfPoint.getDistanceTo(x, y);
                     if (dist < minDist) {
                         minDist = dist;
@@ -715,7 +715,7 @@ public final class MyStrategy implements Strategy {
         endY = (endY >= POTENTIAL_GRID_SIZE) ? POTENTIAL_GRID_SIZE-1 : endY;
         for (int x = startX; x <= endX; x++) {
             for (int y = startY; y <= endY; y++) {
-                if (!PathFinder.blocked[x][y]) {
+                if (!pathFinder.blocked[x][y]) {
                     points.add(new Point(x,y));
                 }
             }
@@ -955,15 +955,15 @@ public final class MyStrategy implements Strategy {
     
     private void updateBlockedTiles()
     {
-        PathFinder.blocked = new boolean[POTENTIAL_GRID_SIZE][POTENTIAL_GRID_SIZE];
+        pathFinder.blocked = new boolean[POTENTIAL_GRID_SIZE][POTENTIAL_GRID_SIZE];
         for (int i = 0; i < POTENTIAL_GRID_SIZE; i++) {
             int distance = 0;
             int j = 0;
             while(distance <= self.getRadius()) {
-                PathFinder.blocked[i][j] = true;
-                PathFinder.blocked[j][i] = true;
-                PathFinder.blocked[i][POTENTIAL_GRID_SIZE-1-j] = true;
-                PathFinder.blocked[POTENTIAL_GRID_SIZE-1-j][i] = true;
+                pathFinder.blocked[i][j] = true;
+                pathFinder.blocked[j][i] = true;
+                pathFinder.blocked[i][POTENTIAL_GRID_SIZE-1-j] = true;
+                pathFinder.blocked[POTENTIAL_GRID_SIZE-1-j][i] = true;
                 distance += POTENTIAL_GRID_COL_SIZE;
                 j++;
             }
@@ -972,14 +972,14 @@ public final class MyStrategy implements Strategy {
             blockTilesByUnit(unit);
         });
         if (world.getTickIndex() % 50 == 0) {
-            PathFinder.treesBlocked = new boolean[POTENTIAL_GRID_SIZE][POTENTIAL_GRID_SIZE];
+            pathFinder.treesBlocked = new boolean[POTENTIAL_GRID_SIZE][POTENTIAL_GRID_SIZE];
             for (Tree tree : world.getTrees()) {
                 blockTilesByUnit(tree, true);
             }
         }
         for (int x = 0; x < POTENTIAL_GRID_SIZE; x++) {
             for (int y = 0; y < POTENTIAL_GRID_SIZE; y++) {
-                PathFinder.blocked[x][y] |= PathFinder.treesBlocked[x][y];
+                pathFinder.blocked[x][y] |= pathFinder.treesBlocked[x][y];
             }
         }
     }
@@ -992,9 +992,9 @@ public final class MyStrategy implements Strategy {
             for (int j = StrictMath.max(unitPoint.y-(int)r,0); j <= StrictMath.min(unitPoint.y+(int)r,POTENTIAL_GRID_SIZE-1); j++) {
                 if ((unitPoint.getDistanceTo(i, j)-0.5)*POTENTIAL_GRID_COL_SIZE < r) {
                     if (isTree) {
-                        PathFinder.treesBlocked[i][j] = true;
+                        pathFinder.treesBlocked[i][j] = true;
                     } else {
-                        PathFinder.blocked[i][j] = true;
+                        pathFinder.blocked[i][j] = true;
                     }
                 }
             }                

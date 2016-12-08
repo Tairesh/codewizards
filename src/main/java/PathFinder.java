@@ -6,14 +6,15 @@ import java.util.List;
 public class PathFinder {
     
     private static PathFinder instance;
-    public static boolean[][] blocked;
-    public static boolean[][] treesBlocked;
+    public boolean[][] blocked;
+    public boolean[][] treesBlocked;
     
     private List<Point> lastCalculatedPath = null;
     
     private PathFinder()
     {
-
+        blocked = new boolean[MyStrategy.POTENTIAL_GRID_SIZE][MyStrategy.POTENTIAL_GRID_SIZE];
+        treesBlocked = new boolean[MyStrategy.POTENTIAL_GRID_SIZE][MyStrategy.POTENTIAL_GRID_SIZE];
     }
     
     public static PathFinder getInstance()
