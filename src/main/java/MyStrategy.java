@@ -13,8 +13,8 @@ import model.*;
 
 public final class MyStrategy implements Strategy {
     
-    private final IVisualClient debug = new EmptyVisualClient();
-    private final boolean debugEnabled = false;
+    private final IVisualClient debug = new VisualClient();
+    private final boolean debugEnabled = true;
     private final PathFinder pathFinder = PathFinder.getInstance();
     private final GlobalMap globalMap = GlobalMap.getInstance();
     private Random random;
@@ -313,10 +313,10 @@ public final class MyStrategy implements Strategy {
                     targetPoint2D = new Point2D(self);
                     targetPoint2D.add(new Vector2D(-10.0, self.getAngle()));
                 }
-            } else if (self.getLife() < 0.8*self.getMaxLife() && nearAlliesWizardsCount < nearEnemyWizardsCount) {
+            } else if (self.getLife() < 0.8*self.getMaxLife() && nearAlliesWizardsCount <= nearEnemyWizardsCount) {
                 debug.line(self.getX(), self.getY(), previousWaypoint.x, previousWaypoint.y, Color.MAGENTA);
                 targetPoint2D = getPathPointToTarget(previousWaypoint);
-            } else if (distance > self.getCastRange() && self.getRemainingActionCooldownTicks() < 10 && !isCrossing(bestTarget)) { // идти к врагу если он далеко
+            } else if (distance > self.getCastRange()+bestTarget.getRadius() && self.getRemainingActionCooldownTicks() < 10 && !isCrossing(bestTarget)) { // идти к врагу если он далеко
                 targetPoint2D = getPathPointToTarget(Point2D.pointBetween(self, bestTarget));
             } else {
                 Point best = getBestPoint();
@@ -330,16 +330,43 @@ public final class MyStrategy implements Strategy {
         } else {
             targetPoint2D = getPathPointToTarget(getPseudoNextPoint());
         }
+        
+        double distance = targetPoint2D.getDistanceTo(self);
+        double angle = self.getAngleTo(targetPoint2D.x, targetPoint2D.y);
+        
         boolean needStayAroundBonus = ((isCurrentLaneToBonus1() && targetPoint2D.getDistanceTo(bonusPoint1) < 5.0 && !bonus1) || (isCurrentLaneToBonus2() && targetPoint2D.getDistanceTo(bonusPoint2) < 5.0 && !bonus2));
-        boolean weAreAroundNextPoint = self.getDistanceTo(targetPoint2D.x, targetPoint2D.y) < self.getRadius()+game.getBonusRadius()+5.0;
-        if (!needStayAroundBonus || !weAreAroundNextPoint) {
-            debug.line(self.getX(), self.getY(), targetPoint2D.x, targetPoint2D.y, Color.CYAN);
-            debug.circle(targetPoint2D.x, targetPoint2D.y, self.getRadius(), Color.CYAN);
-            double angle = self.getAngleTo(targetPoint2D.x, targetPoint2D.y);
-            Vector2D vector = new Vector2D(10.0, angle);
-            move.setSpeed(vector.getX());
-            move.setStrafeSpeed(vector.getY());
-            move.setTurn(angle);
+        boolean weAreAroundNextPoint = distance < self.getRadius()+game.getBonusRadius()+5.0;
+        
+        if (needStayAroundBonus && weAreAroundNextPoint && ticksToNextBonus < 5) {
+            if (distance < self.getRadius()+game.getBonusRadius()+1.0) {
+                Vector2D vectFromBonusToMe = new Vector2D(distance, MyMath.normalizeAngle(angle+StrictMath.PI));
+                vectFromBonusToMe.setLength(self.getRadius()+game.getBonusRadius()+2.0);
+                targetPoint2D.add(vectFromBonusToMe);
+            }         
+        }
+        
+        targetPoint2D = checkForBlocking(targetPoint2D);
+        
+        debug.line(self.getX(), self.getY(), targetPoint2D.x, targetPoint2D.y, Color.CYAN);
+        debug.circle(targetPoint2D.x, targetPoint2D.y, self.getRadius(), Color.CYAN);
+        Vector2D vector = new Vector2D(10.0, angle);
+        move.setSpeed(vector.getX());
+        move.setStrafeSpeed(vector.getY());
+        move.setTurn(angle);
+    }
+    
+    private boolean isBlocked(Point point)
+    {
+        return PathFinder.blocked[point.x][point.y];
+    }
+    
+    private Point2D checkForBlocking(Point2D point2D)
+    {
+        Point point = convert2DToPoint(point2D);
+        if (isBlocked(point)) {
+            return getNearestUnblockedPoint2D(point);
+        } else {
+            return point2D;
         }
     }
     
@@ -413,30 +440,40 @@ public final class MyStrategy implements Strategy {
             point2D = new Point2D(self.getX(), self.getY());
             point2D.add(new Vector2D(self.getRadius()+5.0, MyMath.normalizeAngle(self.getAngle() + self.getAngleTo(targetPoint2D.x, targetPoint2D.y))));
             if (isCrossing(point2D)) {
-                point2D = getNearestUnblockedPoint2D();
+                point2D = getNearestUnblockedPoint2D(convert2DToPoint(point2D));
             }
             return point2D;
         }
         return targetPoint2D;
     }
     
-    private Point getNearestUnblockedPoint()
+    private Point getNearestUnblockedPoint(Point point)
     {
         List<Point> list = new ArrayList<>(120);
-        for (int i = StrictMath.max(selfPoint.x-5, 0); i < StrictMath.min(selfPoint.x+5, POTENTIAL_GRID_SIZE); i++) {
-            for (int j = StrictMath.max(selfPoint.y-5, 0); j < StrictMath.min(selfPoint.y+5, POTENTIAL_GRID_SIZE); j++) {
-                if (!PathFinder.blocked[i][j]/* && selfPoint.getDistanceTo(i, j) > 1.9*/) {
+        for (int i = StrictMath.max(point.x-5, 0); i < StrictMath.min(point.x+5, POTENTIAL_GRID_SIZE); i++) {
+            for (int j = StrictMath.max(point.y-5, 0); j < StrictMath.min(point.y+5, POTENTIAL_GRID_SIZE); j++) {
+                if (!PathFinder.blocked[i][j] && !selfPoint.equals(i, j)) {
                     list.add(new Point(i, j));
                 }
             }
         }
 
         return Collections.min(list, (o1, o2) -> {
-            double distance1 = selfPoint.getDistanceTo(o1);
-            double distance2 = selfPoint.getDistanceTo(o2);
+            double distance1 = point.getDistanceTo(o1);
+            double distance2 = point.getDistanceTo(o2);
             if (distance1 == distance2) return 0;
             else return distance1 < distance2 ? -1 : 1;
         });
+    }
+    
+    private Point getNearestUnblockedPoint()
+    {
+        return getNearestUnblockedPoint(selfPoint);
+    }
+    
+    private Point2D getNearestUnblockedPoint2D(Point point)
+    {
+        return convertPointTo2D(getNearestUnblockedPoint(point));
     }
     
     private Point2D getNearestUnblockedPoint2D()
