@@ -337,22 +337,18 @@ public final class MyStrategy implements Strategy {
         boolean needStayAroundBonus = ((isCurrentLaneToBonus1() && targetPoint2D.getDistanceTo(bonusPoint1) < 5.0 && !bonus1) || (isCurrentLaneToBonus2() && targetPoint2D.getDistanceTo(bonusPoint2) < 5.0 && !bonus2));
         boolean weAreAroundNextPoint = distance < self.getRadius()+game.getBonusRadius()+5.0;
         
-        if (needStayAroundBonus && weAreAroundNextPoint && ticksToNextBonus < 5) {
-            if (distance < self.getRadius()+game.getBonusRadius()+1.0) {
-                Vector2D vectFromBonusToMe = new Vector2D(distance, MyMath.normalizeAngle(angle+StrictMath.PI));
-                vectFromBonusToMe.setLength(self.getRadius()+game.getBonusRadius()+2.0);
-                targetPoint2D.add(vectFromBonusToMe);
-            }         
+        if (needStayAroundBonus && weAreAroundNextPoint) {
+            
+        } else {        
+            targetPoint2D = checkForBlocking(targetPoint2D);
+
+            debug.line(self.getX(), self.getY(), targetPoint2D.x, targetPoint2D.y, Color.CYAN);
+            debug.circle(targetPoint2D.x, targetPoint2D.y, self.getRadius(), Color.CYAN);
+            Vector2D vector = new Vector2D(10.0, angle);
+            move.setSpeed(vector.getX());
+            move.setStrafeSpeed(vector.getY());
+            move.setTurn(angle);
         }
-        
-        targetPoint2D = checkForBlocking(targetPoint2D);
-        
-        debug.line(self.getX(), self.getY(), targetPoint2D.x, targetPoint2D.y, Color.CYAN);
-        debug.circle(targetPoint2D.x, targetPoint2D.y, self.getRadius(), Color.CYAN);
-        Vector2D vector = new Vector2D(10.0, angle);
-        move.setSpeed(vector.getX());
-        move.setStrafeSpeed(vector.getY());
-        move.setTurn(angle);
     }
     
     private boolean isBlocked(Point point)
