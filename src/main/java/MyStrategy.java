@@ -13,7 +13,7 @@ import model.*;
 
 public final class MyStrategy implements Strategy {
     
-    private final IVisualClient debug = new VisualClient();
+    private final IVisualClient debug = new EmptyVisualClient();
     private final boolean debugEnabled = false;
     private final PathFinder pathFinder = PathFinder.getInstance();
     private final GlobalMap globalMap = GlobalMap.getInstance();
@@ -195,8 +195,13 @@ public final class MyStrategy implements Strategy {
                 
         if (null != bestTarget) {
             Point2D bestTargetPoint = new Point2D(bestTarget);
-            bestTargetPoint.x += bestTarget.getSpeedX()*5.0;
-            bestTargetPoint.y += bestTarget.getSpeedY()*5.0;
+            if (bestTarget.getClass() == Minion.class) {
+                bestTargetPoint.x += bestTarget.getSpeedX()*5.0;
+                bestTargetPoint.y += bestTarget.getSpeedY()*5.0;
+            } else if (bestTarget.getClass() == Wizard.class) {
+                double maxMove = 4.0*(self.getDistanceTo(bestTarget) / game.getMagicMissileSpeed());
+                bestTargetPoint.add(new Vector2D(maxMove/3.0, bestTarget.getAngle()));
+            }
             double angle = self.getAngleTo(bestTargetPoint.x,bestTargetPoint.y);
             double distance = self.getDistanceTo(bestTargetPoint.x,bestTargetPoint.y);
             move.setTurn(angle);
