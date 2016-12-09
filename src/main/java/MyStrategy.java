@@ -151,13 +151,13 @@ public final class MyStrategy implements Strategy {
         return false;
     }
     
-    private boolean isExistNearLifelessTowersOrWizards()
+    private boolean isExistNearLifelessTowers/*OrWizards*/()
     {
-        if (enemyWizards.stream().anyMatch((wizard) -> (wizard.getDistanceTo(self) < 600.0 && wizard.getLife() < wizard.getMaxLife()*0.3 && !isCrossingTree(wizard)))) {
-            return true;
-        }
+//        if (enemyWizards.stream().anyMatch((wizard) -> (wizard.getDistanceTo(self) < 600.0 && wizard.getLife() < wizard.getMaxLife()*0.7 && !isCrossingTree(wizard)))) {
+//            return true;
+//        }
         
-        if (enemyBuildings.stream().anyMatch((building) -> (building.getDistanceTo(self) < 600.0 && building.getLife() < building.getMaxLife()*0.3 && !isCrossingTree(building)))) {
+        if (enemyBuildings.stream().anyMatch((building) -> (building.getDistanceTo(self) < 750.0 && building.getLife() < building.getMaxLife()*0.5 && !isCrossingTree(building)))) {
             return true;
         }
         
@@ -322,7 +322,7 @@ public final class MyStrategy implements Strategy {
             
             double distance = self.getDistanceTo(bestTarget);
             double selfPotential = potentialGrid[selfPoint.x][selfPoint.y];
-            if (isCurrentLaneToBonus() && self.getLife() > 0.75*self.getMaxLife() && !isExistNearLifelessTowersOrWizards()) {
+            if (isCurrentLaneToBonus() && self.getLife() > 0.75*self.getMaxLife() && !isExistNearLifelessTowers/*OrWizards*/()) {
                 targetPoint2D = getPathPointToTarget(nextWaypoint);
             } else if (selfPotential < PSEUDO_SAFE_POTENTIAL || self.getLife() < 0.5*self.getMaxLife()) {
                 Point safe = getNearestPseudoSafePoint();
@@ -332,7 +332,7 @@ public final class MyStrategy implements Strategy {
                     targetPoint2D = new Point2D(self);
                     targetPoint2D.add(new Vector2D(-10.0, self.getAngle()));
                 }
-            } else if (self.getLife() < 0.8*self.getMaxLife() && nearAlliesWizardsCount <= nearEnemyWizardsCount) {
+            } else if (self.getLife() < 0.8*self.getMaxLife() || nearAlliesWizardsCount < nearEnemyWizardsCount) {
                 debug.line(self.getX(), self.getY(), previousWaypoint.x, previousWaypoint.y, Color.MAGENTA);
                 targetPoint2D = getPathPointToTarget(previousWaypoint);
             } else if (distance > self.getCastRange()+bestTarget.getRadius() && self.getRemainingActionCooldownTicks() < 10 && !isCrossing(bestTarget)) { // идти к врагу если он далеко
