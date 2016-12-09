@@ -13,7 +13,7 @@ import model.*;
 
 public final class MyStrategy implements Strategy {
     
-    private final IVisualClient debug = new EmptyVisualClient();
+    private final IVisualClient debug = new VisualClient();
     private final boolean debugEnabled = false;
     private final PathFinder pathFinder = PathFinder.getInstance();
     private final GlobalMap globalMap = GlobalMap.getInstance();
@@ -88,7 +88,7 @@ public final class MyStrategy implements Strategy {
             debug.text(self.getX(), self.getY()+self.getRadius()+50.0, "Level: "+self.getLevel(), Color.BLACK);
             debug.text(self.getX(), self.getY()+self.getRadius()+65.0, "Skille: "+self.getSkills().length, Color.BLACK);
         }
-              
+        
         walk();
         shoot();
                 
@@ -283,15 +283,15 @@ public final class MyStrategy implements Strategy {
                     && (bestTarget.getClass() == Wizard.class || (bestTarget.getClass() == Minion.class && distance < 100.0))) {
                 move.setAction(ActionType.FROST_BOLT);
                 move.setMinCastDistance(distance-bestTarget.getRadius()-game.getFrostBoltRadius());
+            } else if (StrictMath.max(self.getRemainingActionCooldownTicks(), self.getRemainingCooldownTicksByAction()[ActionType.STAFF.ordinal()]) == 0
+                    && distance <= game.getStaffRange()
+                    && inAngle) {
+                move.setAction(ActionType.STAFF);
             } else if (canThrowMissile
                     && inCastRange
                     && inAngle) {
                 move.setAction(ActionType.MAGIC_MISSILE);
                 move.setMinCastDistance(distance-bestTarget.getRadius()-game.getMagicMissileRadius());
-            } else if (StrictMath.max(self.getRemainingActionCooldownTicks(), self.getRemainingCooldownTicksByAction()[ActionType.STAFF.ordinal()]) == 0
-                    && distance <= game.getStaffRange()
-                    && inAngle) {
-                move.setAction(ActionType.STAFF);
             }
         }
     }
@@ -322,7 +322,7 @@ public final class MyStrategy implements Strategy {
             
             double distance = self.getDistanceTo(bestTarget);
             double selfPotential = potentialGrid[selfPoint.x][selfPoint.y];
-            if (isCurrentLaneToBonus() && self.getLife() > 0.75*self.getMaxLife() && !isExistNearLifelessTowers/*OrWizards*/()) {
+            if (isCurrentLaneToBonus() && self.getLife() > 0.75*self.getMaxLife() && self.getX() < 2500.0 && self.getY() > 1500.0 && !isExistNearLifelessTowers/*OrWizards*/()) {
                 targetPoint2D = getPathPointToTarget(nextWaypoint);
             } else if (selfPotential < PSEUDO_SAFE_POTENTIAL || self.getLife() < 0.5*self.getMaxLife()) {
                 Point safe = getNearestPseudoSafePoint();
