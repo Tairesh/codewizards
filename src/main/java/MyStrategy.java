@@ -151,11 +151,11 @@ public final class MyStrategy implements Strategy {
         return false;
     }
     
-    private boolean isExistNearLifelessTowers/*OrWizards*/()
+    private boolean isExistNearLifelessTowersOrWizards()
     {
-//        if (enemyWizards.stream().anyMatch((wizard) -> (wizard.getDistanceTo(self) < 600.0 && wizard.getLife() < wizard.getMaxLife()*0.7 && !isCrossingTree(wizard)))) {
-//            return true;
-//        }
+        if (enemyWizards.stream().anyMatch((wizard) -> (wizard.getDistanceTo(self) < 600.0 && wizard.getLife() < wizard.getMaxLife()*0.7 && !isCrossingTree(wizard)))) {
+            return true;
+        }
         
         if (enemyBuildings.stream().anyMatch((building) -> (building.getDistanceTo(self) < 750.0 && building.getLife() < building.getMaxLife()*0.5 && !isCrossingTree(building)))) {
             return true;
@@ -327,9 +327,9 @@ public final class MyStrategy implements Strategy {
             
             double distance = self.getDistanceTo(bestTarget);
             double selfPotential = potentialGrid[selfPoint.x][selfPoint.y];
-            if (isCurrentLaneToBonus() && self.getLife() > 0.75*self.getMaxLife() && self.getX() < 2500.0 && self.getY() > 1500.0 && !isExistNearLifelessTowers/*OrWizards*/()) {
+            if (isCurrentLaneToBonus() && self.getLife() > 0.75*self.getMaxLife() && self.getX() < 2200.0 && self.getY() > 1800.0 && !isExistNearLifelessTowersOrWizards()) {
                 targetPoint2D = getPathPointToTarget(nextWaypoint);
-            } else if ((selfPotential < PSEUDO_SAFE_POTENTIAL && self.getLife() < 0.8*self.getMaxLife()) || self.getLife() < 0.5*self.getMaxLife()) {
+            } else if (selfPotential < PSEUDO_SAFE_POTENTIAL || self.getLife() < 0.5*self.getMaxLife()) {
                 Point safe = getNearestPseudoSafePoint();
                 if (safe != null) {
                     targetPoint2D = getPathPointToTarget(safe);
