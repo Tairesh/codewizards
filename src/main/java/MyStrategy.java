@@ -1175,14 +1175,14 @@ public final class MyStrategy implements Strategy {
                 buildingsCount[1]++;
             }
         });
-        if (buildingsCount[1] == 0) {
-            return FakeLaneType.MIDDLE;
-        }
         if (buildingsCount[0] == 0) {
             return FakeLaneType.TOP;
         }
         if (buildingsCount[2] == 0) {
             return FakeLaneType.BOTTOM;
+        }
+        if (buildingsCount[1] == 0) {
+            return FakeLaneType.MIDDLE;
         }
         
         int[] wizardsCount = {0,0,0};
@@ -1195,23 +1195,23 @@ public final class MyStrategy implements Strategy {
                 wizardsCount[2]++;
             }
         });
-        if (wizardsCount[1] == 0) {
-            return FakeLaneType.MIDDLE;
-        }
         if (wizardsCount[0] == 0) {
             return FakeLaneType.TOP;
         }
         if (wizardsCount[2] == 0) {
             return FakeLaneType.BOTTOM;
         }
+        if (wizardsCount[1] == 0) {
+            return FakeLaneType.MIDDLE;
+        }
         
         int[] sumCount = {wizardsCount[0]+buildingsCount[0],wizardsCount[1]+buildingsCount[1],wizardsCount[2]+buildingsCount[2]};
-        if (sumCount[0] < sumCount[1] && sumCount[0] < sumCount[2]) {
-            return FakeLaneType.TOP;
-        } else if (sumCount[2] < sumCount[1] && sumCount[2] < sumCount[0]) {
-            return FakeLaneType.TOP;
-        } else {
+        if (sumCount[1] < sumCount[0] && sumCount[1] < sumCount[2]) {
             return FakeLaneType.MIDDLE;
+        } else if (sumCount[2] < sumCount[1] && sumCount[2] < sumCount[0]) {
+            return FakeLaneType.BOTTOM;
+        } else {
+            return FakeLaneType.TOP;
         }
     }
         
