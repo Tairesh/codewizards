@@ -327,7 +327,7 @@ public final class MyStrategy implements Strategy {
             
             double distance = self.getDistanceTo(bestTarget);
             double selfPotential = potentialGrid[selfPoint.x][selfPoint.y];
-            if (isCurrentLaneToBonus() && self.getLife() > 0.75*self.getMaxLife() && self.getX() < 2500.0 && self.getY() > 1500.0 && !isExistNearLifelessTowersOrWizards()) {
+            if (isCurrentLaneToBonus() && self.getLife() > 0.75*self.getMaxLife() && self.getDistanceTo(fakeBuildings[6]) > 1000.0 && !isExistNearLifelessTowersOrWizards()) {
                 targetPoint2D = getPathPointToTarget(nextWaypoint);
             } else if (selfPotential < PSEUDO_SAFE_POTENTIAL || self.getLife() < 0.65*self.getMaxLife()) {
                 Point safe = getNearestPseudoSafePoint();
@@ -906,11 +906,27 @@ public final class MyStrategy implements Strategy {
         checkBonuses();
         if (ticksToNextBonus < 1000 || bonus1 || bonus2) {
             double bonusTimeFactor = 2.5;
-            if (ticksToNextBonus < bonusPoint1.getDistanceTo(self)/bonusTimeFactor || bonus1) {
-                changeLaneToBonus1();
-            } else if (ticksToNextBonus < bonusPoint2.getDistanceTo(self)/bonusTimeFactor || bonus2) {
-                changeLaneToBonus2();
-            }
+            double bonus1distance = bonusPoint1.getDistanceTo(self);
+            double bonus2distance = bonusPoint2.getDistanceTo(self);
+            if (bonus1 && bonus2) {
+            	if (bonus1distance < bonus2distance) {
+            		changeLaneToBonus1();
+            	} else {
+            		changeLaneToBonus2();
+            	}
+            } else if (bonus1) {
+            	changeLaneToBonus1();
+            } else if (bonus2) {
+            	changeLaneToBonus2();
+            } else {
+            	boolean pora1 = ticksToNextBonus < bonus1distance/bonusTimeFactor;
+            	boolean pora2 = ticksToNextBonus < bonus2distance/bonusTimeFactor;
+            	if (pora1 && bonus1distance < bonus2distance) {
+	                changeLaneToBonus1();
+	            } else if (pora2 && bonus2distance < bonus1distance) {
+	                changeLaneToBonus2();
+	            }	
+            } 
         }
         checkLane();
         
