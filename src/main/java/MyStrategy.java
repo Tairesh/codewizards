@@ -153,7 +153,7 @@ public final class MyStrategy implements Strategy {
     
     private boolean isExistNearLifelessTowersOrWizards()
     {
-        if (enemyWizards.stream().anyMatch((wizard) -> (wizard.getDistanceTo(self) < 600.0 && wizard.getLife() < wizard.getMaxLife()*0.5 && !isCrossingTree(wizard)))) {
+        if (enemyWizards.stream().anyMatch((wizard) -> (wizard.getDistanceTo(self) < 600.0 && wizard.getLife() < wizard.getMaxLife()*0.35 && !isCrossingTree(wizard)))) {
             return true;
         }
         
@@ -327,7 +327,7 @@ public final class MyStrategy implements Strategy {
             
             double distance = self.getDistanceTo(bestTarget);
             double selfPotential = potentialGrid[selfPoint.x][selfPoint.y];
-            if (isCurrentLaneToBonus() && self.getLife() > 0.75*self.getMaxLife() && self.getX() < 2200.0 && self.getY() > 1800.0 && !isExistNearLifelessTowersOrWizards()) {
+            if (isCurrentLaneToBonus() && self.getLife() > 0.75*self.getMaxLife() && self.getX() < 2500.0 && self.getY() > 1500.0 && !isExistNearLifelessTowersOrWizards()) {
                 targetPoint2D = getPathPointToTarget(nextWaypoint);
             } else if (selfPotential < PSEUDO_SAFE_POTENTIAL || self.getLife() < 0.65*self.getMaxLife()) {
                 Point safe = getNearestPseudoSafePoint();
@@ -362,8 +362,10 @@ public final class MyStrategy implements Strategy {
         boolean weAreAroundNextPoint = distance < self.getRadius()+game.getBonusRadius()+5.0;
         
         if (needStayAroundBonus && weAreAroundNextPoint) {
-            
-        } else {        
+            if (distance < self.getRadius()+game.getBonusRadius()+0.1) {
+                move.setSpeed(-10.0);
+            }
+        } else {
             targetPoint2D = checkForBlocking(targetPoint2D);
 
             debug.line(self.getX(), self.getY(), targetPoint2D.x, targetPoint2D.y, Color.CYAN);
@@ -1146,20 +1148,16 @@ public final class MyStrategy implements Strategy {
     private void changeLaneFromBonus()
     {
         switch (lane) {
-            case ENEMYBASE_TO_TOP_BONUS1:
             case TOP_TO_BONUS1:
                 lane = FakeLaneType.BONUS1_TO_TOP;
                 break;
             case MIDDLE_TO_BONUS1:
-            case ENEMYBASE_TO_MIDDLE_BONUS1:
                 lane = FakeLaneType.BONUS1_TO_MIDDLE;
                 break;
-            case ENEMYBASE_TO_BOTTOM_BONUS2:
             case BOTTOM_TO_BONUS2:                
                 lane = FakeLaneType.BONUS2_TO_BOTTOM;
                 break;
             case MIDDLE_TO_BONUS2:
-            case ENEMYBASE_TO_MIDDLE_BONUS2:
                 lane = FakeLaneType.BONUS2_TO_MIDDLE;
                 break;
         }
@@ -1220,9 +1218,7 @@ public final class MyStrategy implements Strategy {
     private boolean isCurrentLaneToBonus1()
     {
         switch (lane) {
-            case ENEMYBASE_TO_TOP_BONUS1:
             case TOP_TO_BONUS1:
-            case ENEMYBASE_TO_MIDDLE_BONUS1:
             case MIDDLE_TO_BONUS1:
                 return true;
         }
@@ -1232,9 +1228,7 @@ public final class MyStrategy implements Strategy {
     private boolean isCurrentLaneToBonus2()
     {
         switch (lane) {
-            case ENEMYBASE_TO_BOTTOM_BONUS2:
             case BOTTOM_TO_BONUS2:
-            case ENEMYBASE_TO_MIDDLE_BONUS2:
             case MIDDLE_TO_BONUS2:
                 return true;
         }
@@ -1274,20 +1268,12 @@ public final class MyStrategy implements Strategy {
         switch (lane) {
             case BOTTOM:
             case BONUS2_TO_BOTTOM:
-                if (self.getY() < game.getMapSize() - 3000.0) {
-//                    lane = FakeLaneType.ENEMYBASE_TO_BOTTOM_BONUS2;
-                } else {
-                    lane = FakeLaneType.BOTTOM_TO_BONUS2;
-                }
+                lane = FakeLaneType.BOTTOM_TO_BONUS2;
                 break;
             case MIDDLE:
             case BONUS1_TO_MIDDLE:
             case BONUS2_TO_MIDDLE:
-                if (self.getX() > 3000.0 && self.getY() < game.getMapSize() - 3000.0) {
-//                    lane = FakeLaneType.ENEMYBASE_TO_MIDDLE_BONUS2;
-                } else {
-                    lane = FakeLaneType.MIDDLE_TO_BONUS2;
-                }
+                lane = FakeLaneType.MIDDLE_TO_BONUS2;
                 break;
         }
     }

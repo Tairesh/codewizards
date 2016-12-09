@@ -5,16 +5,16 @@ import model.SkillType;
 public class SkillsOrdered {
     
     public static final SkillType[] STACK = {
-        SkillType.RANGE_BONUS_PASSIVE_1,
-        SkillType.RANGE_BONUS_AURA_1,
-        SkillType.RANGE_BONUS_PASSIVE_2,
-        SkillType.RANGE_BONUS_AURA_2,
-        SkillType.ADVANCED_MAGIC_MISSILE,
         SkillType.STAFF_DAMAGE_BONUS_PASSIVE_1,
         SkillType.STAFF_DAMAGE_BONUS_AURA_1,
         SkillType.STAFF_DAMAGE_BONUS_PASSIVE_2,
         SkillType.STAFF_DAMAGE_BONUS_AURA_2,
         SkillType.FIREBALL,
+        SkillType.RANGE_BONUS_PASSIVE_1,
+        SkillType.RANGE_BONUS_AURA_1,
+        SkillType.RANGE_BONUS_PASSIVE_2,
+        SkillType.RANGE_BONUS_AURA_2,
+        SkillType.ADVANCED_MAGIC_MISSILE,
         SkillType.MAGICAL_DAMAGE_BONUS_PASSIVE_1,
         SkillType.MAGICAL_DAMAGE_BONUS_AURA_1,
         SkillType.MAGICAL_DAMAGE_BONUS_PASSIVE_2,
