@@ -73,6 +73,11 @@ public final class MyStrategy implements Strategy {
     private Point selfPoint;
     private Pair<LivingUnit,Integer> bestTargetPair;
     
+    private double speedBonus;
+    private double maxForwardSpeed;
+    private double maxBackwardSpeed;
+    private double maxStrafeSpeed;
+    
     @Override
     public void move(Wizard self, World world, Game game, Move move)
     {
@@ -327,9 +332,9 @@ public final class MyStrategy implements Strategy {
             
             double distance = self.getDistanceTo(bestTarget);
             double selfPotential = potentialGrid[selfPoint.x][selfPoint.y];
-            if (isCurrentLaneToBonus() && self.getLife() > 0.75*self.getMaxLife() && self.getDistanceTo(fakeBuildings[6]) > 1000.0 && !isExistNearLifelessTowersOrWizards()) {
+            if (isCurrentLaneToBonus() && self.getLife() > 0.75*self.getMaxLife() && self.getDistanceTo(fakeBuildings[6]) > 1500.0 && self.getDistanceTo(400, 3600) > 1500.0 && !isExistNearLifelessTowersOrWizards()) {
                 targetPoint2D = getPathPointToTarget(nextWaypoint);
-            } else if (selfPotential < PSEUDO_SAFE_POTENTIAL || self.getLife() < 0.65*self.getMaxLife()) {
+            } else if (selfPotential < PSEUDO_SAFE_POTENTIAL || self.getLife() < 0.75*self.getMaxLife()) {
                 Point safe = getNearestPseudoSafePoint();
                 if (safe != null) {
                     targetPoint2D = getPathPointToTarget(safe);
@@ -370,11 +375,80 @@ public final class MyStrategy implements Strategy {
 
             debug.line(self.getX(), self.getY(), targetPoint2D.x, targetPoint2D.y, Color.CYAN);
             debug.circle(targetPoint2D.x, targetPoint2D.y, self.getRadius(), Color.CYAN);
-            Vector2D vector = new Vector2D(10.0, angle);
-            move.setSpeed(vector.getX());
-            move.setStrafeSpeed(vector.getY());
+            Vector2D vector = new Vector2D(10.0, angle);            
+            double speed = vector.getX();
+            double strafeSpeed = vector.getY();
+            
+            double maxSpeed = speed > 0 ? maxForwardSpeed : maxBackwardSpeed;
+            if (StrictMath.abs(speed) > maxSpeed || StrictMath.abs(strafeSpeed) > maxStrafeSpeed) {
+                double k =  StrictMath.min(maxSpeed / StrictMath.abs(speed), maxStrafeSpeed / StrictMath.abs(strafeSpeed));
+                speed *= k;
+                strafeSpeed *= k;
+            }
+            
+            move.setSpeed(speed);
+            move.setStrafeSpeed(strafeSpeed);
             move.setTurn(angle);
         }
+    }
+    
+    private double getMaxForwardSpeed()
+    {
+        return game.getWizardForwardSpeed()*speedBonus;
+    }
+    
+    private double getMaxBackwardSpeed()
+    {
+        return game.getWizardBackwardSpeed()*speedBonus;
+    }
+    
+    private double getMaxStrafeSpeed()
+    {
+        return game.getWizardStrafeSpeed()*speedBonus;
+    }
+    
+    private double getSpeedBonus()
+    {
+        int countSkills = 0;
+        for (SkillType skill : self.getSkills()) {
+            switch (skill) {
+                case MOVEMENT_BONUS_FACTOR_PASSIVE_1:
+                case MOVEMENT_BONUS_FACTOR_PASSIVE_2:
+                case MOVEMENT_BONUS_FACTOR_AURA_1:
+                case MOVEMENT_BONUS_FACTOR_AURA_2:
+                    countSkills++;
+                    break;
+            }
+        }
+        if (countSkills < 4) {
+            for(Wizard wizard : alliesWizards) {
+                if (wizard.getDistanceTo(self) < game.getAuraSkillRange()) {
+                    for (SkillType skill : wizard.getSkills()) {
+                        switch (skill) {
+                            case MOVEMENT_BONUS_FACTOR_AURA_1:
+                            case MOVEMENT_BONUS_FACTOR_AURA_2:
+                                countSkills++;
+                                break;
+                        }
+                    }
+                }
+            }
+        }
+        
+        boolean hastened = false;
+        for (Status status : self.getStatuses()) {
+            if (status.getType() == StatusType.HASTENED) {
+                hastened = true;
+                break;
+            }
+        }
+        
+        double bonus = (double)countSkills * 0.05 + 1.0;
+        if (hastened) {
+            bonus += game.getHastenedMovementBonusFactor();
+        }
+        
+        return bonus;
     }
     
     private boolean isBlocked(Point point)
@@ -972,6 +1046,12 @@ public final class MyStrategy implements Strategy {
         }
         
         learnSkills();
+        
+        speedBonus = getSpeedBonus();
+        maxForwardSpeed = getMaxForwardSpeed();
+        maxBackwardSpeed = getMaxBackwardSpeed();
+        maxStrafeSpeed = getMaxStrafeSpeed();
+        
     }
         
     private void changeLaneToBest()
@@ -1377,7 +1457,7 @@ public final class MyStrategy implements Strategy {
                 if (i > 4) {
                     i -= 5;
                 }
-                fakeWizards[i] = new Wizard(wizard.getId(), 3700, 300, 0, 0, 0, enemyFaction, game.getWizardRadius(), game.getWizardBaseLife(), game.getWizardBaseLife(), new Status[]{}, 12345, false, game.getWizardBaseMana(), game.getWizardBaseMana(), wizard.getVisionRange(), wizard.getCastRange(), 0, 1, wizard.getSkills(), 0, new int[]{0,0,0,0,0}, false, new Message[]{});
+                fakeWizards[i] = new Wizard(wizard.getId(), 4300, -300, 0, 0, 0, enemyFaction, game.getWizardRadius(), game.getWizardBaseLife(), game.getWizardBaseLife(), new Status[]{}, 12345, false, game.getWizardBaseMana(), game.getWizardBaseMana(), wizard.getVisionRange(), wizard.getCastRange(), 0, 1, wizard.getSkills(), 0, new int[]{0,0,0,0,0}, false, new Message[]{});
             }
         }
         
