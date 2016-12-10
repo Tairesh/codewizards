@@ -274,7 +274,7 @@ public final class MyStrategy implements Strategy {
                     && !isTargetBurning
                     && bestTarget.getLife() > game.getFireballExplosionMaxDamage()
                     && !isCrossingTree(bestTarget, game.getFireballRadius())
-                    && (countNearEnemies(bestTarget) > 0 || bestTarget.getClass() == Wizard.class)
+                    && ((countNearEnemies(bestTarget) > 1 && bestTarget.getClass() == Minion.class) || bestTarget.getClass() != Minion.class)
                     && bestTarget.getClass() != Tree.class) {
                 move.setAction(ActionType.FIREBALL);
                 move.setMinCastDistance(distance-bestTarget.getRadius()-game.getFireballRadius());
