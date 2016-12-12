@@ -1607,7 +1607,7 @@ public final class MyStrategy implements Strategy {
     {
         List<Wizard> wizards = new ArrayList<>();
         Set<Long> added = new HashSet<>(5);
-        Arrays.asList(world.getWizards()).stream().filter((wizard) -> (wizard.getFaction() == enemyFaction || wizard.getLife() <= game.getMagicMissileDirectDamage())).forEach((wizard) -> {
+        Arrays.asList(world.getWizards()).stream().filter((wizard) -> (wizard.getFaction() == enemyFaction || (game.isRawMessagesEnabled() && wizard.getLife() <= 10))).forEach((wizard) -> {
             wizards.add(wizard);
             added.add(wizard.getId());
         });
