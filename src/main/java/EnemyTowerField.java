@@ -45,7 +45,7 @@ public class EnemyTowerField extends PotentialField {
             double cooldownFactor = buildingRemainingTicks < 50 ? (double)(50-buildingRemainingTicks)/30.0 : 1.0;
             value *= cooldownFactor;
             if (building.getLife() < 0.2*building.getMaxLife() && self.getLife() > 0.5*self.getMaxLife()) {
-                value *= -0.3;
+                value *= -0.5;
             }
             if (building.getType() == BuildingType.FACTION_BASE) {
                 value = StrictMath.abs(value)*3.0;
