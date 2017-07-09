@@ -1,6 +1,7 @@
 
 import model.ActionType;
 import model.Building;
+import model.BuildingType;
 import model.Wizard;
 
 public class EnemyTowerField extends PotentialField {
@@ -33,16 +34,22 @@ public class EnemyTowerField extends PotentialField {
         
         if (distance < building.getRadius() + colSize) {
             return -200.0;
-        } else if (distance > maxCastDist + colSize) {
+        } else if (distance > maxCastDist + colSize*2) {
             if (distance > maxCastDist*2 + colSize) {
                 return 0.0;
             } else {
                 return 100.0/(distance/maxCastDist);
             }
         } else {
-            double value = -100.0;
-            double cooldownFactor = buildingRemainingTicks < 50 ? (double)(50-buildingRemainingTicks)/50.0 : 0.0;
+            double value = -500.0/(distance/maxCastDist);
+            double cooldownFactor = buildingRemainingTicks < 50 ? (double)(50-buildingRemainingTicks)/30.0 : 1.0;
             value *= cooldownFactor;
+            if (building.getLife() < 0.2*building.getMaxLife() && self.getLife() > 0.5*self.getMaxLife()) {
+                value *= -0.5;
+            }
+            if (building.getType() == BuildingType.FACTION_BASE) {
+                value = StrictMath.abs(value)*3.0;
+            }
             
             double selfCastRange = self.getCastRange() + building.getRadius() + MyStrategy.game.getMagicMissileRadius();
             if (distance < selfCastRange + colSize && distance > selfCastRange*selfCastRangeMinKoeff - colSize) {

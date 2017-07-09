@@ -22,7 +22,7 @@ public class MinionField extends PotentialField {
         
         switch (minion.getType()) {
             case ORC_WOODCUTTER:
-                maxCastDist = self.getRadius() + MyStrategy.game.getOrcWoodcutterAttackRange() + 50.0; // хардкод чтобы сильнее боялся орков
+                maxCastDist = self.getRadius() + MyStrategy.game.getOrcWoodcutterAttackRange() + 200.0; // хардкод чтобы сильнее боялся орков
                 maxCastSector = MyStrategy.game.getOrcWoodcutterAttackSector() / 2.0;
                 break;
             case FETISH_BLOWDART:
