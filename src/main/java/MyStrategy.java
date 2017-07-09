@@ -359,7 +359,7 @@ public final class MyStrategy implements Strategy {
         } else {
             targetPoint2D = getPathPointToTarget(getPseudoNextPoint());
         }
-        
+
         double distance = targetPoint2D.getDistanceTo(self);
         double angle = self.getAngleTo(targetPoint2D.x, targetPoint2D.y);
         
@@ -514,6 +514,7 @@ public final class MyStrategy implements Strategy {
             List<Point> path = pathFinder.getPath(selfPoint, convert2DToPoint(targetPoint2D));
             Point2D point2D = null;
             if (null != path && path.size() > 1) {
+
                 if (debugEnabled) {
                     Point tmp = path.get(0);
                     for (Point point : path) {
@@ -553,7 +554,6 @@ public final class MyStrategy implements Strategy {
                 }
             }
         }
-
         return Collections.min(list, (o1, o2) -> {
             double distance1 = point.getDistanceTo(o1);
             double distance2 = point.getDistanceTo(o2);
@@ -576,7 +576,6 @@ public final class MyStrategy implements Strategy {
     {
         return convertPointTo2D(getNearestUnblockedPoint());
     }
-
     private Point2D getPathPointToTarget(Point targetPoint)
     {
         return getPathPointToTarget(convertPointTo2D(targetPoint));
@@ -976,6 +975,19 @@ public final class MyStrategy implements Strategy {
         ticksToNextBonus = game.getBonusAppearanceIntervalTicks() - (world.getTickIndex() % game.getBonusAppearanceIntervalTicks()) - 1;
         if (game.getTickCount() - world.getTickIndex() < game.getBonusAppearanceIntervalTicks() / 2.0) {
             ticksToNextBonus = Integer.MAX_VALUE;
+        }
+        if (!isCurrentLaneToBonus() && (bonus1 || bonus2)) {
+            if (bonus1 && bonus2) {
+                if (bonusPoint1.getDistanceTo(self) < bonusPoint2.getDistanceTo(self)) {
+                    changeLaneToBonus1();
+                } else {
+                    changeLaneToBonus2();
+                }
+            } else if (bonus1) {
+                changeLaneToBonus1();
+            } else {
+                changeLaneToBonus2();
+            }
         }
         checkBonuses();
         if (ticksToNextBonus < 1000 || bonus1 || bonus2) {

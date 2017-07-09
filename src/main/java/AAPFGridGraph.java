@@ -188,6 +188,36 @@ public class AAPFGridGraph {
         int dy = y2 - y1;
         int dx = x2 - x1;
 
+        if (dx == 0) {
+            if (dy > 0) {
+                for (int i = y1; i < y2; i++) {
+                    if (isBlocked(x1, i)) {
+                        return false;
+                    }
+                }
+            } else {
+                for (int i = y2; i > y1; i--) {
+                    if (isBlocked(x1, i)) {
+                        return false;
+                    }
+                }
+            }
+        } else if (dy == 0) {
+            if (dx > 0) {
+                for (int i = x1; i < x2; i++) {
+                    if (isBlocked(i, y1)) {
+                        return false;
+                    }
+                }
+            } else {
+                for (int i = x2; i > x1; i--) {
+                    if (isBlocked(i, y1)) {
+                        return false;
+                    }
+                }
+            }
+        }
+        
         int f = 0;
 
         int signY = 1;
@@ -222,8 +252,7 @@ public class AAPFGridGraph {
                 
                 x1 += signX;
             }
-        }
-        else {
+        } else {
             while (y1 != y2) {
                 f += dx;
                 if (f >= dy) {

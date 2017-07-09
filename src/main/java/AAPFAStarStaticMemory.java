@@ -97,7 +97,7 @@ public class AAPFAStarStaticMemory extends AAPFPathFindingAlgorithm {
 
     protected float heuristic(int x, int y) {
         //return 0;
-        return heuristicWeight*graph.distance(x, y, ex, ey);
+        return heuristicWeight == 0 ? 0f : heuristicWeight*graph.distance(x, y, ex, ey);
     }
 
 

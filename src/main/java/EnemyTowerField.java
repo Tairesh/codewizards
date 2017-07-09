@@ -21,7 +21,7 @@ public class EnemyTowerField extends PotentialField {
         this.center = new Point((int) building.getX() / MyStrategy.POTENTIAL_GRID_COL_SIZE, (int) building.getY() / MyStrategy.POTENTIAL_GRID_COL_SIZE);
         this.self = self;
         
-        maxCastDist = building.getAttackRange() + self.getRadius();
+        maxCastDist = building.getAttackRange() + self.getRadius() + MyStrategy.POTENTIAL_GRID_COL_SIZE;
         selfRemainingTicks = StrictMath.max(self.getRemainingCooldownTicksByAction()[ActionType.MAGIC_MISSILE.ordinal()], self.getRemainingActionCooldownTicks());
         buildingRemainingTicks = building.getRemainingActionCooldownTicks();
     }
